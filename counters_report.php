@@ -2,25 +2,20 @@
 
 //error_reporting(0);
 
-$host_title = "ET15";
+require("config.php");
 
-$mysql_user = "root";
-$mysql_pass = "myl%_ro4ot_@501";
-$mysql_host = "localhost";
-$mysql_db = "";
-
-$gather_time = 10;
-$gather_passes = 3;
-
+/*
+  vars are stats values
+  [name] => [current value], [relative1], [relative2], etc
+*/
 $vars = array();
 
 function get_stats()
 {
-    global $vars, $gather_passes, $gather_time, $host_title;
+    global $gather_passes, $gather_time, $host_title;
     global $mysql_user, $mysql_pass, $mysql_host;
     $stats = array();
-	mysql_connect($mysql_host, $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters");
-	//mysql_select_db($mysql_db) or die("select_db");
+	@mysql_connect($mysql_host, $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters reason: " . mysql_error());
     echo "collecting data for $host_title, passes: ";
 	for($i = 0; $i < $gather_passes; $i++)
 	{
@@ -49,34 +44,38 @@ function get_stats()
 		}
 		echo $i + 1 . "/" . $gather_passes . " ";
 	}
-	status_store_abs($stats, $host_title);
 	echo "Done!\n";
+    return $vars;
 }
 
-function db_connect()
+function store_raw_stats($vars)
 {
-    global $conn;
-    //$conn = new SQLite3('dailies.db') or die("Can't connect to dailies.db");
-    //var_dump($conn);
-    return $conn;
+    global $host_title, $daily_db, $daily_table;
 
-}
+    //use dailies DB
+    mysql_select_db($daily_db) or die("Cannot use $daily_db to store data reason: " . mysql_error());
 
-function status_store_abs($stats = array(), $host = "hostname")
-{
-    global $conn;
-    if (empty($conn)) $conn = db_connect();
-
-    foreach($stats as $name => $val)
+    foreach($vars as $name => $val)
     {
-        //echo "INSERT INTO stats (date, host, name, val) VALUES (date('now'), '$host', '$name', '$val')\n";
-        //$conn->exec("INSERT INTO stats (date, host, name, val) VALUES (date('now'), '$host', '$name', '$val')");
+        $value = $val[0];
+        echo "Inserting $name => $value pair\n";
+
+        $query = "INSERT INTO $daily_table 
+                (st_collect_date, st_collect_host, 
+                st_name, st_value, st_value_raw, st_added)
+            VALUES 
+                (NOW(), '$host_title', 
+                '$name', '$value', '$value', NOW())";
+
+        $r = mysql_query($query) or die("Can't insert daily data reason: " . mysql_error());
     }
 }
 
 function relative($stat_name, $pos = 0)
 {
     global $vars;
+    global $gather_passes;
+    if ($pos >= $gather_passes) print "passes count exceeded for $stat_name";
 	return ((float)$vars["$stat_name"][$pos])/$vars["Uptime"][$pos];
 }
 
@@ -88,7 +87,11 @@ function fancy($stat_name, $pos = 0)
 
 function rw_rate($pos = 0)
 {
-	return relative("Com_select", $pos) / (relative("Com_update", $pos) + relative("Com_insert", $pos) + relative("Com_delete", $pos));
+    global $gather_passes;
+    if ($pos >= $gather_passes) print "passes count exceeded";
+	$rw_value = relative("Com_select", $pos) / (relative("Com_update", $pos) + relative("Com_insert", $pos) + relative("Com_delete", $pos));
+    if (!$rw_value) $rw_value = 0;
+    return $rw_value;
 }
 
 function fancy_rate($pos = 0)
@@ -99,6 +102,9 @@ function fancy_rate($pos = 0)
 function row($stat_name, $max_review_no = 0, $title = "")
 {
     global $vars;
+
+    global $gather_passes;
+    if ($max_review_no >= $gather_passes) print "Can't make row: passes count exceeded for $stat_name";
     $title = empty($title) ? $stat_name : $title . " rate";
     printf("%1$-40s", $title);
     for ($i = 0; $i <= $max_review_no; $i++ ) print fancy($stat_name, $i) . "\t";
@@ -116,7 +122,9 @@ foreach($stats as $dummy => $stat)
 }
 */
 
-get_stats();
+$vars = get_stats();
+// history DB part
+store_raw_stats($vars);
 
 // ***** REPORT *****
 
@@ -128,7 +136,7 @@ printf("%1$-40s", "Delete rate:"); print fancy("Com_delete") . "\t" . fancy("Com
 
 printf("%1$-40s", "R/W rate:"); print fancy_rate(0) . "\t" . fancy_rate(1) . "\t" . fancy_rate(2).  "\n";
 
-print "================= IO pressure: ================= \n";
+print "====== MySQL IO pressure:\n";
 row("Handler_read_rnd", 2);
 row("Innodb_data_writes", 2);
 row("Innodb_dblwr_writes", 2);
@@ -138,21 +146,21 @@ row("Innodb_pages_written", 2);
 //row("Innodb_pages_read", 2);
 //row("Innodb_data_reads", 2);
 
-print "================= buffres and pools =================\n";
+print "====== MySQL buffres and pools: \n";
 row("Key_read_requests", 2);
 row("Key_reads", 2);
 
-print "================= Selects: =================\n";
+print "====== MySQL Selects:\n";
 row("Select_full_join", 2);
 row("Select_scan", 2);
 row("Created_tmp_files", 2);
 row("Created_tmp_disk_tables", 2);
 
-print "================= Locking: =================\n";
+print "====== MySQL Locking:\n";
 row("Innodb_log_waits", 2);
 row("Table_locks_waited", 2);
 
-print "================= Caching: =================\n";
+print "====== MySQL Caching:\n";
 row("Threads_created", 2);
 row("Connections", 2);
 
