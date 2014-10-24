@@ -1,3 +1,0 @@
-CREATE DATABASE dailies;
-
-mysql dailies < stats_table.sql
