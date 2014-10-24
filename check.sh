@@ -1,26 +1,27 @@
 #!/bin/bash
 
-host="ET14-MySQL-master"
-
+HOST=$1
 TODAY=`date +%y%m%d`
 
-echo "HOST: $host"
+echo "HOST: $HOST"
 w | grep load
+
 echo -e "\n==== disks ===="
 df -h
+
 echo -e "\n==== memory ===="
 free -m
+
 echo -e "\n==== network ===="
 netstat -i
 
 echo -e "\n\n==== MySQL error log ===="
 cat /var/log/mysql/error.log | grep $TODAY
 
+### Run MySQL counters report
 echo -e "\n==== MySQL counters ===="
-/usr/bin/php -q ./counters_report.php
+/usr/bin/php -q ./mysql_counters/counters_report.php
 
-### Making slow query digest
-/root/health_check/query_digest_daily.sh $TODAY
+### Run slow query digest
+./mysql_query_review/query_digest_daily.sh $TODAY
 
-echo -e "\n\n==== QUERY digest ===="
-cat /data/data/mysql-logs/digests/$TODAY.digest

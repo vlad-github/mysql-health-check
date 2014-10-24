@@ -1,0 +1,3 @@
+Requirements to run daily checks
+
+- you need to have Percona toolkit installed. Pease visit http://www.percona.com/downloads/percona-toolkit/
