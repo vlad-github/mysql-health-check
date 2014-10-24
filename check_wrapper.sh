@@ -1,3 +1,3 @@
 #!/bin/bash
 
-./check.sh "et15" | mail -s "ET15 host check" vlad@astellar.com
+./check.sh "HOSTNAME" | mail -s "Health check for HOSTNAME" -b vlad@astellar.com root@localhost

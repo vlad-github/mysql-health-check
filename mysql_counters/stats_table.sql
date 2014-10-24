@@ -1,6 +1,8 @@
-DROP TABLE IF EXISTS daily_stats;
+CREATE DATABASE astellar;
 
-CREATE TABLE daily_stats (
+USE astellar;
+
+CREATE TABLE IF NOT EXISTS daily_stats (
   id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
   st_collect_date date NOT NULL,
   st_collect_host varchar(255),

@@ -1,3 +1,7 @@
+CREATE DATABASE astellar;
+
+USE astellar;
+
 CREATE TABLE IF NOT EXISTS query_review (
    checksum     BIGINT UNSIGNED NOT NULL PRIMARY KEY,
    fingerprint  TEXT NOT NULL,
