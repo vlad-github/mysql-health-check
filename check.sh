@@ -19,8 +19,9 @@ echo -e "\n\n==== MySQL error log ===="
 cat /var/log/mysql/error.log | grep $TODAY
 
 ### Run MySQL counters report
+### 
 echo -e "\n==== MySQL counters ===="
-/usr/bin/php -q ./mysql_counters/counters_report.php
+/usr/bin/php -q ./mysql_counters/counters_report.php $HOST
 
 ### Run slow query digest
 ./mysql_query_review/query_digest_daily.sh $TODAY

@@ -4,6 +4,10 @@ require_once("config.php");
 
 error_reporting(0);
 
+//Host title used to identify host in history table
+$host_title = $argv[1];
+if (empty("$host_title")) die("Stop. Can't continue without host title. See check_wrapper.sh for details")
+
 /*
   vars are stats values
   [name] => [current value], [relative1], [relative2], etc

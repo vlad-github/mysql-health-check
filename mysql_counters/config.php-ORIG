@@ -5,9 +5,6 @@
  * and data gather settings
  */
 
-//Will be stored as a host name in daily stats
-$host_title = "test_host";
-
 $mysql_user = "root";
 $mysql_pass = "";
 $mysql_host = "localhost";
