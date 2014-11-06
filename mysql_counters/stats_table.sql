@@ -1,6 +1,5 @@
-CREATE DATABASE astellar;
-
-USE astellar;
+-- CREATE DATABASE astellar;
+-- USE astellar;
 
 CREATE TABLE IF NOT EXISTS daily_stats (
   id int(10) unsigned NOT NULL AUTO_INCREMENT PRIMARY KEY,
@@ -11,5 +10,5 @@ CREATE TABLE IF NOT EXISTS daily_stats (
   st_value_raw varchar(255) NOT NULL DEFAULT '',
   st_added datetime NOT NULL,
   KEY key_collect_host (st_collect_host),
-  KEY key_host_date (st_collect_host, st_collect_date)
+  UNIQUE KEY key_host_date (st_collect_host, st_collect_date)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8;

@@ -69,7 +69,8 @@ function store_raw_stats($vars)
                 st_name, st_value, st_value_raw, st_added)
             VALUES 
                 (NOW(), '$host_title', 
-                '$name', '$value', '$value', NOW())";
+                '$name', '$value', '$value', NOW())
+                ON DUPLICATE KEY UPDATE st_value = '$value', st_value_raw = '$value', st_added = NOW() ";
 
         $r = mysql_query($query) or die("Can't insert daily data reason: " . mysql_error());
     }

@@ -1,0 +1,10 @@
+Requirements to run daily checks.
+
+You need to have the following software to be installed:
+
+- PHP (with MySQL support)
+- Percona toolkit. Pease visit http://www.percona.com/downloads/percona-toolkit/
+
+- MySQL (to store daily data)
+- edit mysql_counters/config.php
+- edit hostname in check_wrapper.sh

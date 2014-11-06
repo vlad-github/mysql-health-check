@@ -1,3 +1,3 @@
-CREATE DATABASE dailies;
+mysql -u root -p -e "CREATE DATABASE astellar"
 
-mysql dailies < stats_table.sql
+mysql -u root -p astellar < stats_table.sql
