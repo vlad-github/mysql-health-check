@@ -13,6 +13,13 @@ TODAY=`date +%F`
 fi
 
 SLOW_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.slow_query_log_file"`
+
+if [ -z "$SLOW_LOG" ]; then
+    echo "can't get query log file from @@GLOBAL.slow_query_log_file"
+    exit 3
+fi
+
+
 DIGEST_DIR=`dirname $SLOW_LOG`/digests
 DIGEST=$DIGEST_DIR/$TODAY.digest
 LOG_DAILY=$DIGEST_DIR/$TODAY.log
