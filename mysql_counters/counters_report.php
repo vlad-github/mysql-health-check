@@ -26,9 +26,7 @@
 * SUCH DAMAGE.
 */
 
-require_once("config.php");
-
-error_reporting(0);
+//error_reporting(0);
 
 //Host title used to identify host in history table
 $host_title = $argv[1];
@@ -65,7 +63,7 @@ function get_stats()
     global $gather_passes, $gather_time, $host_title;
     global $mysql_user, $mysql_pass, $mysql_host;
     $stats = array();
-	@mysql_connect($mysql_host, $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters reason: " . mysql_error());
+	mysql_connect($mysql_host, $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters reason: " . mysql_error());
     echo "collecting data for $host_title, passes: ";
 	for($i = 0; $i < $gather_passes; $i++)
 	{
