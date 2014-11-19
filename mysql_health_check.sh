@@ -46,6 +46,10 @@ netstat -i
 
 echo -e "\n\n=== MySQL error log:"
 ERROR_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.log_error"`
+if [ -z "$ERROR_LOG" ]; then
+    echo "can't get error log path"
+    exit 4
+fi
 
 cat $ERROR_LOG | grep $TODAY
 
