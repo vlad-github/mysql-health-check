@@ -2,6 +2,9 @@
 
 TODAY=$1
 
+### SETUP
+#PT_QUERY_DIGEST_BIN=
+
 if [ -z "$TODAY" ]; then
 TODAY=`date +%F`
 fi
