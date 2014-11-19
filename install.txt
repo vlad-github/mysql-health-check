@@ -36,8 +36,8 @@
 #### REQUIREMENTS 
 
 - PHP (with MySQL support)
-    RHEL/CentOS: yum install php-cli
-    Ubuntu/Debuan: apt-get install php-cli
+    RHEL/CentOS: yum install php-cli php-mysql
+    Ubuntu/Debuan: apt-get install php-cli php-mysql
 
 - Percona toolkit [optional, for full version only!]. 
     Pease visit http://www.percona.com/downloads/percona-toolkit/ for instructions

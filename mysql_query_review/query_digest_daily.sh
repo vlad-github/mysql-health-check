@@ -36,7 +36,7 @@ cat $SLOW_LOG >> $LOG_DAILY
 ### clear logs
 ## FIXME unaccurate rotation
 echo "" > $SLOW_LOG
-pt-query-digest --limit 5 $LOG_DAILY > $DIGEST
+./bin/pt-query-digest --limit 5 $LOG_DAILY > $DIGEST
 
 ### send digest
 echo -e "\n\n==== MySQL QUERY digest ===="
