@@ -31,9 +31,9 @@ Installing required software on RHEL/CentOS:
 Installing required software on Ubuntu/Debian: 
     apt-get install php-cli php-mysql perl-Time-HiRes
 
-Then unzip, configure and run ./check_wrapper.sh
+Then unzip, configure and run ./check_run.sh
 
 #### CONFIGURATION 
 
-- Edit hostname AND MySQL credentials in check_wrapper.sh if needed
+- Edit hostname AND MySQL credentials in check_run.sh if needed
 
