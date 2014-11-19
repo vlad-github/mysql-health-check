@@ -29,6 +29,6 @@ HOSTNAME=`hostname -s`
 
 MYSQL_HOST=localhost
 MYSQL_USER=root
-MYSQL_PASS=""
+MYSQL_PASS="myl%_ro4ot_@501"
 
 ./mysql_health_check.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" | mail -s "Health check for $HOSTNAME" -b vlad@astellar.com root@localhost
