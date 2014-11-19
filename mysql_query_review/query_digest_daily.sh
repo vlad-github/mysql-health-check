@@ -13,7 +13,6 @@ TODAY=`date +%F`
 fi
 
 SLOW_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.slow_query_log_file"`
-
 if [ -z "$SLOW_LOG" ]; then
     echo "can't get query log file from @@GLOBAL.slow_query_log_file, please verify MySQL credentials"
     exit 3
@@ -23,16 +22,16 @@ if [ ! -r $SLOW_LOG ]; then
     exit 5
 fi
 
-
 DIGEST_DIR=`dirname $SLOW_LOG`/digests
+if [ ! -d $DIGEST_DIR ]; then
+    mkdir -p $DIGEST_DIR
+fi
+if [ ! -d $DIGEST_DIR ]; then
+    echo "Can't create digest directory: $DIGEST_DIR"
+fi
+
 DIGEST=$DIGEST_DIR/$TODAY.digest
 LOG_DAILY=$DIGEST_DIR/$TODAY.log
-
-### pre flight
-## TODO:
-## FIXME check if directory exists
-## FIXME check if pt-query-digest is in $PATH
-mkdir -p $DIGEST_DIR
 
 ### prepare
 cat $SLOW_LOG >> $LOG_DAILY
