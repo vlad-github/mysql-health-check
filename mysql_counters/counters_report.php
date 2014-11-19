@@ -165,9 +165,11 @@ $vars = get_stats();
 
 // ***** REPORT *****
 
-printf("%1$-40s", "Rates:"); print "Uptime\tReview1\tReview2\n";
+printf("%1$-40s", "Values:"); print "Uptime\tReview1\tReview2\n";
+print "== Load:\n";
 printf("%1$-40s", "Questions:");   print fancy("Questions") .  "\t" . fancy("Questions", 1) .  "\t" . fancy("Questions",2).  "\n";
 printf("%1$-40s", "Queries:");     print fancy("Queries") .    "\t" . fancy("Queries", 1) .    "\t" . fancy("Queries",2).  "\n";
+print "== Rates:\n";
 printf("%1$-40s", "Select rate:"); print fancy("Com_select") . "\t" . fancy("Com_select", 1) . "\t" . fancy("Com_select",2).  "\n";
 printf("%1$-40s", "Insert rate:"); print fancy("Com_insert") . "\t" . fancy("Com_insert", 1) . "\t" . fancy("Com_insert", 2).  "\n";
 printf("%1$-40s", "Update rate:"); print fancy("Com_update") . "\t" . fancy("Com_update", 1) . "\t" . fancy("Com_update", 2).  "\n";
