@@ -50,6 +50,10 @@ if [ -z "$ERROR_LOG" ]; then
     echo "can't get error log path, please verify MySQL credentials"
     exit 4
 fi
+if [ ! -r $ERROR_LOG ]; then
+    echo "can't read error log: $ERROR_LOG"
+    exit 5
+fi
 
 cat $ERROR_LOG | grep $TODAY
 

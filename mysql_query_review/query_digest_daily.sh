@@ -18,6 +18,10 @@ if [ -z "$SLOW_LOG" ]; then
     echo "can't get query log file from @@GLOBAL.slow_query_log_file, please verify MySQL credentials"
     exit 3
 fi
+if [ ! -r $SLOW_LOG ]; then
+    echo "can't read slow query log file: $SLOW_LOG"
+    exit 5
+fi
 
 
 DIGEST_DIR=`dirname $SLOW_LOG`/digests
