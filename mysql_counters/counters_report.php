@@ -166,10 +166,10 @@ $vars = get_stats();
 // ***** REPORT *****
 
 printf("%1$-40s", "Values:"); print "Uptime\tReview1\tReview2\n";
-print "== Load:\n";
+print "== Load ==";
 printf("%1$-40s", "Questions:");   print fancy("Questions") .  "\t" . fancy("Questions", 1) .  "\t" . fancy("Questions",2).  "\n";
 printf("%1$-40s", "Queries:");     print fancy("Queries") .    "\t" . fancy("Queries", 1) .    "\t" . fancy("Queries",2).  "\n";
-print "== Rates:\n";
+print "== Rates ==";
 printf("%1$-40s", "Select rate:"); print fancy("Com_select") . "\t" . fancy("Com_select", 1) . "\t" . fancy("Com_select",2).  "\n";
 printf("%1$-40s", "Insert rate:"); print fancy("Com_insert") . "\t" . fancy("Com_insert", 1) . "\t" . fancy("Com_insert", 2).  "\n";
 printf("%1$-40s", "Update rate:"); print fancy("Com_update") . "\t" . fancy("Com_update", 1) . "\t" . fancy("Com_update", 2).  "\n";
@@ -177,7 +177,7 @@ printf("%1$-40s", "Delete rate:"); print fancy("Com_delete") . "\t" . fancy("Com
 
 printf("%1$-40s", "R/W rate:"); print fancy_rate(0) . "\t" . fancy_rate(1) . "\t" . fancy_rate(2).  "\n";
 
-print "== MySQL IO pressure:\n";
+print "== MySQL IO pressure ==\n";
 row("Handler_read_rnd", 2);
 row("Innodb_data_writes", 2);
 row("Innodb_dblwr_writes", 2);
@@ -187,25 +187,25 @@ row("Innodb_pages_written", 2);
 //row("Innodb_pages_read", 2);
 //row("Innodb_data_reads", 2);
 
-print "== MySQL buffres and pools: \n";
+print "== MySQL buffres and pools ==\n";
 row("Key_read_requests", 2);
 row("Key_reads", 2);
 
-print "== MySQL Selects:\n";
+print "== MySQL Selects ==\n";
 row("Select_full_join", 2);
 row("Select_scan", 2);
 row("Created_tmp_files", 2);
 row("Created_tmp_disk_tables", 2);
 
-print "== MySQL Locking:\n";
+print "== MySQL Locking ==\n";
 row("Innodb_log_waits", 2);
 row("Table_locks_waited", 2);
 
-print "== MySQL Caching:\n";
+print "== MySQL Caching ==\n";
 row("Threads_created", 2);
 row("Connections", 2);
 
-print "== Qcache:\n";
+print "== Qcache ==\n";
 print "Hits:\t\t\t"    . number_format($vars["Qcache_hits"][0]) . "\n";
 print "Inserts:\t\t" . number_format($vars["Qcache_inserts"][0]) . "\n";
 print "Hits/Selects:\t\t" . number_format((float)$vars["Qcache_hits"][0]/$vars["Com_select"][0], 2) . "\n";

@@ -35,16 +35,16 @@ TODAY=`date +%y%m%d`
 echo "HOST: $HOST"
 w | grep load
 
-echo -e "\n=== disks:"
+echo -e "\n=== disks ==="
 df -h
 
-echo -e "\n=== memory:"
+echo -e "\n=== memory ==="
 free -m
 
-echo -e "\n=== network:"
+echo -e "\n=== network ==="
 netstat -i
 
-echo -e "\n\n=== MySQL error log:"
+echo -e "\n\n=== MySQL error log ==="
 ERROR_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.log_error"`
 if [ -z "$ERROR_LOG" ]; then
     echo "can't get error log path, please verify MySQL credentials"
