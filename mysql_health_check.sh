@@ -47,7 +47,7 @@ netstat -i
 echo -e "\n\n=== MySQL error log:"
 ERROR_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.log_error"`
 if [ -z "$ERROR_LOG" ]; then
-    echo "can't get error log path"
+    echo "can't get error log path, please verify MySQL credentials"
     exit 4
 fi
 

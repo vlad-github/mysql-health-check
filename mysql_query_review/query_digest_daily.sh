@@ -15,7 +15,7 @@ fi
 SLOW_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.slow_query_log_file"`
 
 if [ -z "$SLOW_LOG" ]; then
-    echo "can't get query log file from @@GLOBAL.slow_query_log_file"
+    echo "can't get query log file from @@GLOBAL.slow_query_log_file, please verify MySQL credentials"
     exit 3
 fi
 

@@ -23,19 +23,17 @@
 # SUCH DAMAGE.
 
 
-#### INSTALLATION
+#### INSTALLATION and REQUIREMENTS 
 
-- unzip, configure and run ./check_wrapper.sh
+Installing required software on RHEL/CentOS: 
+    yum install php-cli php-mysql perl-Time-HiRes
+
+Installing required software on Ubuntu/Debian: 
+    apt-get install php-cli php-mysql perl-Time-HiRes
+
+Then unzip, configure and run ./check_wrapper.sh
 
 #### CONFIGURATION 
 
-- Edit MySQL credentials in mysql_counters/config.php 
-- Edit hostname in check_wrapper.sh if needed
-- DO: chmod u+x *.sh */*.sh
-
-#### REQUIREMENTS 
-
-- PHP (with MySQL support)
-    RHEL/CentOS: yum install php-cli php-mysql perl-Time-HiRes
-    Ubuntu/Debuan: apt-get install php-cli php-mysql perl-Time-HiRes
+- Edit hostname AND MySQL credentials in check_wrapper.sh if needed
 
