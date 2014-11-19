@@ -24,7 +24,36 @@
 # OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF
 # SUCH DAMAGE.
 
-### SETUP
-HOSTNAME=`hostname -s`
 
-./check.sh $HOSTNAME | mail -s "Health check for $HOSTNAME" -b vlad@astellar.com root@localhost
+HOST=$1
+MYSQL_HOST=$2
+MYSQL_USER=$3
+MYSQL_PASS=$4
+
+TODAY=`date +%y%m%d`
+
+echo "HOST: $HOST"
+w | grep load
+
+echo -e "\n==== disks ===="
+df -h
+
+echo -e "\n==== memory ===="
+free -m
+
+echo -e "\n==== network ===="
+netstat -i
+
+echo -e "\n\n==== MySQL error log ===="
+ERROR_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.log_error"`
+
+cat $ERROR_LOG | grep $TODAY
+
+### Run MySQL counters report
+### 
+echo -e "\n==== MySQL counters ===="
+php -q ./mysql_counters/counters_report.php $HOST $MYSQL_HOST $MYSQL_USER $MYSQL_PASS
+
+### Run slow query digest
+./mysql_query_review/query_digest_daily.sh $TODAY $MYSQL_HOST $MYSQL_USER $MYSQL_PASS
+

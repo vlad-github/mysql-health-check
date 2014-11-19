@@ -32,7 +32,27 @@ error_reporting(0);
 
 //Host title used to identify host in history table
 $host_title = $argv[1];
-if (empty($host_title)) die("Stop. Can't continue without host title. See check_wrapper.sh for details");
+$mysql_host = $argv[2];
+$mysql_user = $argv[3];
+$mysql_pass = $argv[4];
+
+if (empty($host_title)) 
+    die("Stop. Can't continue without host title. Please see check_run.sh for details");
+if (empty($mysql_host) || empty($mysql_user) || empty($mysql_pass))
+    die("Stop. Can't continue without MySQL credentials. Please see check_run.sh for details");
+
+
+// Configuration 
+
+// Where to store historical data
+$daily_db = "astellar";
+$daily_table = "daily_stats";
+
+// Pause between stats collection, seconds.
+$gather_time = 10;
+
+// Number of data collection (default = 3: uptime, live delta1 and live delta2)
+$gather_passes = 3;
 
 /*
   vars are stats values
@@ -144,8 +164,6 @@ function row($stat_name, $max_review_no = 0, $title = "")
 
 //Obtain live statistics from MySQL server
 $vars = get_stats();
-// history DB part
-store_raw_stats($vars);
 
 // ***** REPORT *****
 
@@ -191,5 +209,8 @@ print "== Qcache:\n";
 print "Hits:\t\t\t"    . number_format($vars["Qcache_hits"][0]) . "\n";
 print "Inserts:\t\t" . number_format($vars["Qcache_inserts"][0]) . "\n";
 print "Hits/Selects:\t\t" . number_format((float)$vars["Qcache_hits"][0]/$vars["Com_select"][0], 2) . "\n";
+
+// history DB part
+store_raw_stats($vars);
 
 ?>

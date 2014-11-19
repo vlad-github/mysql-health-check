@@ -1,6 +1,9 @@
 #!/bin/bash
 
 TODAY=$1
+MYSQL_HOST=$2
+MYSQL_USER=$3
+MYSQL_PASS=$4
 
 ### SETUP
 #PT_QUERY_DIGEST_BIN=
@@ -9,20 +12,25 @@ if [ -z "$TODAY" ]; then
 TODAY=`date +%F`
 fi
 
-SLOW_LOG=/data/data/mysql-logs/slow.log
-DIGEST=/data/data/mysql-logs/digests/$TODAY.digest
-LOG_DAILY=/data/data/mysql-logs/digests/$TODAY.log
+SLOW_LOG=`mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -BNe "SELECT @@GLOBAL.slow_query_log_file"`
+DIGEST_DIR=`dirname $SLOW_LOG`/digests
+DIGEST=$DIGEST_DIR/$TODAY.digest
+LOG_DAILY=$DIGEST_DIR/$TODAY.log
 
 ### pre flight
-#mkdir -p /data/data/mysql-logs/digests/
+## TODO:
+## FIXME check if directory exists
+## FIXME check if pt-query-digest is in $PATH
+mkdir -p $DIGEST_DIR
 
 ### prepare
 cat $SLOW_LOG >> $LOG_DAILY
 
 ### clear logs
+## FIXME unaccurate rotation
 echo "" > $SLOW_LOG
 pt-query-digest --limit 5 $LOG_DAILY > $DIGEST
 
 ### send digest
 echo -e "\n\n==== MySQL QUERY digest ===="
-cat /data/data/mysql-logs/digests/$TODAY.digest
+cat $DIGEST
