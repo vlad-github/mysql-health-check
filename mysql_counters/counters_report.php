@@ -101,7 +101,7 @@ function store_raw_stats($vars)
     global $host_title, $daily_db, $daily_table;
 
     //use dailies DB
-    mysql_select_db($daily_db) or die("No $daily_db database found, historical data disabled.");
+    mysql_select_db($daily_db) or die("No $daily_db database found, historical data disabled.\n");
 
     foreach($vars as $name => $val)
     {
@@ -165,8 +165,9 @@ $vars = get_stats();
 
 // ***** REPORT *****
 
-print "Details and explanations: http://astellar.com/mysql-health-check/\n";
-print "=================================================================\n";
+print "=========================================================================\n";
+print "Details and explanations: http://astellar.com/mysql-health-check/metrics/\n";
+print "=========================================================================\n";
 printf("%1$-40s", "Values:"); print "Uptime\tLive#1\tLive#2\n";
 print "== Load ==\n";
 printf("%1$-40s", "Questions:");   print fancy("Questions") .  "\t" . fancy("Questions", 1) .  "\t" . fancy("Questions",2).  "\n";
@@ -182,30 +183,32 @@ printf("%1$-40s", "R/W rate:"); print fancy_rate(0) . "\t" . fancy_rate(1) . "\t
 print "== MySQL IO pressure ==\n";
 row("Handler_read_rnd", 2);
 row("Innodb_data_writes", 2);
+row("Innodb_data_reads", 2);
 row("Innodb_dblwr_writes", 2);
 row("Innodb_log_writes", 2);
-row("Innodb_pages_written", 2);
 
 //row("Innodb_pages_read", 2);
 //row("Innodb_data_reads", 2);
 
-print "== MySQL buffres and pools ==\n";
+print "== Key buffer efficiency ==\n";
 row("Key_read_requests", 2);
 row("Key_reads", 2);
 
-print "== MySQL Selects ==\n";
-row("Select_full_join", 2);
+print "== Query-related stats ==\n";
 row("Select_scan", 2);
-row("Created_tmp_files", 2);
+row("Select_full_join", 2);
+row("Created_tmp_tables", 2);
 row("Created_tmp_disk_tables", 2);
 
 print "== MySQL Locking ==\n";
 row("Innodb_log_waits", 2);
 row("Table_locks_waited", 2);
 
-print "== MySQL Caching ==\n";
+print "== MySQL connections ==\n";
 row("Threads_created", 2);
 row("Connections", 2);
+row("Aborted_connects", 2);
+
 
 print "== Qcache ==\n";
 print "Hits:\t\t\t"    . number_format($vars["Qcache_hits"][0]) . "\n";

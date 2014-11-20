@@ -4,9 +4,10 @@ Installing required software on RHEL/CentOS:
     yum install php-cli php-mysql perl-Time-HiRes
 
 Installing required software on Ubuntu/Debian: 
-    apt-get install php-cli php-mysql perl-Time-HiRes
+    apt-get install php5-cli php5-mysqlnd 
+    mailutils can also be required.
 
-Then unzip, configure and run ./check_run.sh
+Then unzip ditro, edit and run ./check_run.sh
 
 #### CONFIGURATION 
 

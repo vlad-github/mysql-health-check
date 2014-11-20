@@ -30,7 +30,6 @@ MYSQL_USER=$3
 MYSQL_PASS=$4
 
 ### SETUP
-#PT_QUERY_DIGEST_BIN=
 
 if [ -z "$TODAY" ]; then
 TODAY=`date +%F`
@@ -57,14 +56,22 @@ fi
 DIGEST=$DIGEST_DIR/$TODAY.digest
 LOG_DAILY=$DIGEST_DIR/$TODAY.log
 
-### prepare
+### copy current log for processing
 cat $SLOW_LOG >> $LOG_DAILY
+
+### check if we can write to digest directory
+if [ ! -w $LOG_DAILY ]; then
+    echo "Can't create daily slow log. Can't write to digest dir: $DIGEST_DIR please help!"
+    exit 6
+fi
 
 ### clear logs
 ## FIXME unaccurate rotation
 echo "" > $SLOW_LOG
+
+### create query digest
 ./bin/pt-query-digest --noversion-check --limit 5 $LOG_DAILY > $DIGEST
 
-### send digest
-echo -e "\n\n==== MySQL QUERY digest ===="
+### send digest to STDOUT
+echo -e "\n\n==== MySQL slow queries report ===="
 cat $DIGEST
