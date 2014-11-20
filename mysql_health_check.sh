@@ -33,7 +33,7 @@ MYSQL_PASS=$4
 TODAY=`date +%y%m%d`
 
 echo "Health check report for host $HOST"
-w | grep load
+uptime
 
 echo -e "\n=== disks ==="
 df -h
