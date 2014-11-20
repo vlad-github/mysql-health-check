@@ -1,0 +1,14 @@
+#### INSTALLATION and REQUIREMENTS 
+
+Installing required software on RHEL/CentOS: 
+    yum install php-cli php-mysql perl-Time-HiRes
+
+Installing required software on Ubuntu/Debian: 
+    apt-get install php-cli php-mysql perl-Time-HiRes
+
+Then unzip, configure and run ./check_run.sh
+
+#### CONFIGURATION 
+
+- Edit email in check_run.sh where report will be sent
+- Edit hostname AND MySQL credentials in check_run.sh if needed

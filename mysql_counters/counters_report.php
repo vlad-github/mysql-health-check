@@ -101,7 +101,7 @@ function store_raw_stats($vars)
     global $host_title, $daily_db, $daily_table;
 
     //use dailies DB
-    mysql_select_db($daily_db) or die("Cannot use $daily_db to store data reason: " . mysql_error());
+    mysql_select_db($daily_db) or die("No $daily_db database found, historical data disabled.");
 
     foreach($vars as $name => $val)
     {
@@ -116,7 +116,7 @@ function store_raw_stats($vars)
                 '$name', '$value', '$value', NOW())
                 ON DUPLICATE KEY UPDATE st_value = '$value', st_value_raw = '$value', st_added = NOW() ";
 
-        $r = mysql_query($query) or die("Can't insert daily data reason: " . mysql_error());
+        $r = mysql_query($query) or die("Can't insert daily data. Reason: " . mysql_error());
     }
 }
 
@@ -165,7 +165,9 @@ $vars = get_stats();
 
 // ***** REPORT *****
 
-printf("%1$-40s", "Values:"); print "Uptime\tReview1\tReview2\n";
+print "Details and explanations: http://astellar.com/mysql-health-check/\n";
+print "=================================================================\n";
+printf("%1$-40s", "Values:"); print "Uptime\tLive#1\tLive#2\n";
 print "== Load ==";
 printf("%1$-40s", "Questions:");   print fancy("Questions") .  "\t" . fancy("Questions", 1) .  "\t" . fancy("Questions",2).  "\n";
 printf("%1$-40s", "Queries:");     print fancy("Queries") .    "\t" . fancy("Queries", 1) .    "\t" . fancy("Queries",2).  "\n";
