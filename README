@@ -1,9 +1,13 @@
-#### INSTALLATION and REQUIREMENTS 
+#### DOWNLOAD LATEST
 
-Installing required software on RHEL/CentOS: 
+    wget http://sourceforge.net/projects/mysql-health-check/files/latest/download
+
+#### REQUIREMENTS 
+
+Software required on RHEL/CentOS: 
     yum install php-cli php-mysql perl-Time-HiRes
 
-Installing required software on Ubuntu/Debian: 
+Software required on Ubuntu/Debian: 
     apt-get install php5-cli php5-mysqlnd 
     mailutils can also be required.
 
