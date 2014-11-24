@@ -1,5 +1,10 @@
 #!/bin/bash
 
+if [ -z "$1" ]; then
+	echo "Usage: release.sh <VERSION>"
+	exit 1
+fi
+
 REL_VERSION=$1
 REL_NAME=mysql-health-check-$REL_VERSION
 
@@ -17,4 +22,6 @@ echo "Making archive"
 cd $REL_DIR
 
 tar -zcvf $REL_NAME.tar.gz $REL_NAME
+
+echo $REL_DIR/$REL_NAME.tar.gz
 
