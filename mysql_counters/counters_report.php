@@ -32,12 +32,12 @@
 $host_title = $argv[1];
 $mysql_host = $argv[2];
 $mysql_user = $argv[3];
-$mysql_pass = $argv[4];
+$mysql_pass = @$argv[4];
 
 if (empty($host_title)) 
     die("Stop. Can't continue without host title. Please see check_run.sh for details");
-if (empty($mysql_host) || empty($mysql_user) || empty($mysql_pass))
-    die("Stop. Can't continue without MySQL credentials. Please see check_run.sh for details");
+if (empty($mysql_host) || empty($mysql_user))
+    die("Stop. Can't continue without MySQL credentials. Please edit MYSQL_HOST and MYSQL_USER in check_run.sh");
 
 
 // Configuration 
@@ -138,7 +138,7 @@ function rw_rate($pos = 0)
 {
     global $gather_passes;
     if ($pos >= $gather_passes) print "passes count exceeded";
-	$rw_value = relative("Com_select", $pos) / (relative("Com_update", $pos) + relative("Com_insert", $pos) + relative("Com_delete", $pos));
+	$rw_value = @(relative("Com_select", $pos) / (relative("Com_update", $pos) + relative("Com_insert", $pos) + relative("Com_delete", $pos)));
     if (!$rw_value) $rw_value = 0;
     return $rw_value;
 }

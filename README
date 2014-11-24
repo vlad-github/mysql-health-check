@@ -7,9 +7,16 @@ Installing required software on Ubuntu/Debian:
     apt-get install php5-cli php5-mysqlnd 
     mailutils can also be required.
 
-Then unzip ditro, edit and run ./check_run.sh
+#### CONFIGURING AND RUNNING
 
-#### CONFIGURATION 
+1. Edit MySQL credentials in check_run.sh
+2. Run ./check_run.sh
+3. Enjoy!
 
-- Edit email in check_run.sh where report will be sent
-- Edit hostname AND MySQL credentials in check_run.sh if needed
+You can also send report to email address by using --email parameter:
+  
+   ./check_run.sh --email <your@email.com>
+
+Report will be emailed to you. This is useful when running script via cron.
+
+Have a nice day!
