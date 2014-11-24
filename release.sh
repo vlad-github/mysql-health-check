@@ -1,5 +1,7 @@
 #!/bin/bash
 
+# cd /root/hc-dev/health_check on quark
+
 if [ -z "$1" ]; then
 	echo "Usage: release.sh <VERSION>"
 	exit 1

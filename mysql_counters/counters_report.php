@@ -168,7 +168,7 @@ $vars = get_stats();
 print "=========================================================================\n";
 print "Details and explanations: http://astellar.com/mysql-health-check/metrics/\n";
 print "=========================================================================\n";
-printf("%1$-40s", "Values:"); print "Uptime\tLive#1\tLive#2\n";
+printf("%1$-40s", "Per second averages:"); print "Uptime\tLive#1\tLive#2\n";
 print "== Load ==\n";
 printf("%1$-40s", "Questions:");   print fancy("Questions") .  "\t" . fancy("Questions", 1) .  "\t" . fancy("Questions",2).  "\n";
 printf("%1$-40s", "Queries:");     print fancy("Queries") .    "\t" . fancy("Queries", 1) .    "\t" . fancy("Queries",2).  "\n";
