@@ -1,7 +1,7 @@
 #### GOAL
 
-    Consolidate main health system and MySQL metics in one place.
-    Useful for daily and weekly MySQL health checks.
+    Consolidate main system and MySQL health metrics in one report.
+    Useful for routine daily and weekly MySQL checks.
 
     Report provides:
     - Basic OS-level parameters: uptime, disk space and network interface status
