@@ -211,8 +211,8 @@ row("Aborted_connects", 2);
 
 
 print "== Qcache ==\n";
-print "Hits:\t\t\t"    . number_format($vars["Qcache_hits"][0]) . "\n";
-print "Inserts:\t\t" . number_format($vars["Qcache_inserts"][0]) . "\n";
+print "Qcache_hits total:\t\t\t"    . number_format($vars["Qcache_hits"][0]) . "\n";
+print "Qcache_inserts total:\t\t" . number_format($vars["Qcache_inserts"][0]) . "\n";
 print "Hits/Selects:\t\t" . number_format((float)$vars["Qcache_hits"][0]/$vars["Com_select"][0], 2) . "\n";
 
 // history DB part

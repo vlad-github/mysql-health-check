@@ -1,3 +1,4 @@
-check_wrapper.sh
-mysql_counters/config.php
 clone.txt
+prepare_release.sh
+release.sh
+push-to-git.sh
