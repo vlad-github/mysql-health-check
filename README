@@ -25,6 +25,6 @@ You can also send report to email address by using --email parameter:
   
    ./check_run.sh --email <your@email.com>
 
-Report will be emailed to you. This is useful when running script via cron.
+Report will be emailed to you. This is useful when running script daily via cron.
 
 Have a nice day!

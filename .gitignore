@@ -2,3 +2,5 @@ clone.txt
 prepare_release.sh
 release.sh
 push-to-git.sh
+push-to-git.cmd
+push-to-quark.cmd
