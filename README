@@ -6,7 +6,7 @@
     Report provides:
     - Basic OS-level parameters: uptime, disk space and network interface status
     - Today's entries from MySQL error log
-    - Important MySQL statistics
+    - Important MySQL statistics http://astellar.com/mysql-health-check/metrics/
     - Top 5 queries from MySQL slow query log
 
 #### DOCUMENTATION
