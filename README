@@ -9,6 +9,18 @@
     - Important MySQL statistics http://astellar.com/mysql-health-check/metrics/
     - Top 5 queries from MySQL slow query log
 
+#### CONFIGURING AND RUNNING
+
+    1. Edit MySQL credentials in check_run.sh
+    2. Run ./check_run.sh
+    3. Enjoy!
+
+    You can also send report to email address by using --email parameter:
+  
+       ./check_run.sh --email <your@email.com>
+
+    Report will be emailed to you. Useful when running script via cron.
+
 #### DOCUMENTATION
 
     http://astellar.com/mysql-health-check/
@@ -22,23 +34,11 @@
 
 #### REQUIREMENTS 
 
-Software required on RHEL/CentOS: 
-    yum install php-cli php-mysql perl-Time-HiRes
+    Software required on RHEL/CentOS: 
+        yum install php-cli php-mysql perl-Time-HiRes
 
-Software required on Ubuntu/Debian: 
-    apt-get install php5-cli php5-mysqlnd 
-    mailutils can also be required.
-
-#### CONFIGURING AND RUNNING
-
-1. Edit MySQL credentials in check_run.sh
-2. Run ./check_run.sh
-3. Enjoy!
-
-You can also send report to email address by using --email parameter:
-  
-   ./check_run.sh --email <your@email.com>
-
-Report will be emailed to you. This is useful when running script daily via cron.
+    Software required on Ubuntu/Debian: 
+        apt-get install php5-cli php5-mysqlnd 
+        mailutils can also be required.
 
 Have a nice day!
