@@ -15,6 +15,9 @@
 
 #### DOWNLOAD LATEST
 
+    From GitHub: https://github.com/vlad-github/mysql-health-check
+
+    From SourceForge:
     wget http://sourceforge.net/projects/mysql-health-check/files/latest/download
 
 #### REQUIREMENTS 
