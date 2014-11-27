@@ -1,2 +1,2 @@
-# set to run at end of the day at 23:50
-50      23      *       *       *       cd /<PATH-TO-HEALTHCHECK>/mysql-health-check-0.1a; ./check_run.sh --email <MY@EMAIL.COM> > check.log 2>&1
+# set to run every day at 23:50
+50      23      *       *       *       cd /<PATH-TO-HEALTHCHECK>/ ; ./check_run.sh --email <MY@EMAIL.COM> > check.log 2>&1
