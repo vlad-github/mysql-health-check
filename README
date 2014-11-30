@@ -8,6 +8,7 @@
     - Today's entries from MySQL error log
     - Important MySQL statistics http://astellar.com/mysql-health-check/metrics/
     - Top 5 queries from MySQL slow query log
+    Report example: http://astellar.com/mysql-health-check/report-sample/
 
 #### CONFIGURING AND RUNNING
 
