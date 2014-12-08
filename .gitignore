@@ -4,4 +4,4 @@ release.sh
 release.cmd
 push-to-git.sh
 push-to-git.cmd
-push-to-quark.cmd
+push-to-astra.cmd

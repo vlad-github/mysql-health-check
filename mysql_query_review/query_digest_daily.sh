@@ -51,6 +51,7 @@ if [ ! -d $DIGEST_DIR ]; then
 fi
 if [ ! -d $DIGEST_DIR ]; then
     echo "Can't create digest directory: $DIGEST_DIR"
+    exit 6
 fi
 
 DIGEST=$DIGEST_DIR/$TODAY.digest
@@ -62,7 +63,7 @@ cat $SLOW_LOG >> $LOG_DAILY
 ### check if we can write to digest directory
 if [ ! -w $LOG_DAILY ]; then
     echo "Can't create daily slow log. Can't write to digest dir: $DIGEST_DIR please help!"
-    exit 6
+    exit 7
 fi
 
 ### clear logs
