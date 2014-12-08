@@ -33,6 +33,7 @@ $host_title = $argv[1];
 $mysql_host = $argv[2];
 $mysql_user = $argv[3];
 $mysql_pass = @$argv[4];
+$mysql_port = @$argv[5];
 
 if (empty($host_title)) 
     die("Stop. Can't continue without host title. Please see check_run.sh for details");
@@ -61,9 +62,10 @@ $vars = array();
 function get_stats()
 {
     global $gather_passes, $gather_time, $host_title;
-    global $mysql_user, $mysql_pass, $mysql_host;
+    global $mysql_user, $mysql_pass, $mysql_host, $mysql_port;
     $stats = array();
-	mysql_connect($mysql_host, $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters reason: " . mysql_error());
+    mysql_connect("$mysql_host:$mysql_port", $mysql_user, $mysql_pass) or die("Can't connect to MySQL, please check connection parameters reason: " . mysql_error());
+
     echo "collecting data for $host_title, passes: ";
 	for($i = 0; $i < $gather_passes; $i++)
 	{
