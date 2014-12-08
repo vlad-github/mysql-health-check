@@ -50,7 +50,7 @@ echo -e "\n=== MySQL counters ==="
 php -q ./mysql_counters/counters_report.php $HOST $MYSQL_HOST $MYSQL_USER $MYSQL_PASS
 
 echo -e "\n=== Top tables ==="
-mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -e "SELECT engine, concat(round(table_rows/1000000,2),'M') rows, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, concat(table_schema,'.',table_name) as 'DB.table' FROM information_schema.TABLES WHERE table_schema NOT IN('PERFORMANCE_SCHEMA','information_schema') ORDER BY data_length+index_length DESC LIMIT 10"
+mysql -h $MYSQL_HOST -u $MYSQL_USER --password=$MYSQL_PASS -e "SELECT engine, concat(round(table_rows/1000000,2),'M') rows, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') size, concat(table_schema,'.',table_name) as 'DB.table' FROM information_schema.TABLES WHERE table_schema NOT IN('PERFORMANCE_SCHEMA','information_schema') ORDER BY data_length+index_length DESC LIMIT 10"
 
 ### Run slow query digest
 ./mysql_query_review/query_digest_daily.sh $TODAY $MYSQL_HOST $MYSQL_USER $MYSQL_PASS

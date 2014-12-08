@@ -1,6 +1,6 @@
 #### THE GOAL
 
-    Consolidate main system and MySQL health metrics in one report.
+    Consolidate main MySQL and system health metrics in one report.
     Useful for routine daily and weekly MySQL checks.
 
     Report provides:
