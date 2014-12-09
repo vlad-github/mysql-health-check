@@ -83,6 +83,9 @@ mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW ENGINE INNODB STATUS\G" > $REVIEW_
 
 echo "5. Getting current process list..."
 mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $REVIEW_DIR/db-processlist.log
-echo "Done";
 
-echo "Collected data available in $REVIEW_DIR/*"
+echo "Done, paking data";
+tar -zcvf $REVIEW_DIR.tar.gz $REVIEW_DIR/*
+
+echo "Collected data is available in $REVIEW_DIR and as $REVIEW_DIR.tar.gz archive"
+echo "For details please check http://astellar.com/mysql-health-check/initial-review-mode/"
