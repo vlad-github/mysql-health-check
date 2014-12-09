@@ -35,6 +35,9 @@
 
     http://astellar.com/mysql-health-check/
 
+    This project based on Percona Toolkit:
+    http://www.percona.com/software/percona-toolkit
+
 #### DOWNLOAD LATEST
 
     From GitHub: https://github.com/vlad-github/mysql-health-check
