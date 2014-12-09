@@ -29,7 +29,9 @@
   
        ./check_run.sh --first-look
 
-    Report includes several files related to Operating system, MySQL server and details of your DB schema.
+    Report includes most information about your Operating system, 
+    MySQL server and your DB schema. Please check for more details:
+    http://astellar.com/mysql-health-check/initial-review-mode/
 
 #### DOCUMENTATION
 
