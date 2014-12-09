@@ -87,5 +87,6 @@ mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $REVIEW_DIR/db-pr
 echo "Done, paking data";
 tar -zcvf $REVIEW_DIR.tar.gz $REVIEW_DIR/*
 
-echo "Collected data is available in $REVIEW_DIR and as $REVIEW_DIR.tar.gz archive"
+echo "Collected data is available in $REVIEW_DIR directory and as $REVIEW_DIR.tar.gz archive"
 echo "For details please check http://astellar.com/mysql-health-check/initial-review-mode/"
+
