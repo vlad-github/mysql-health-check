@@ -5,3 +5,5 @@ release.cmd
 push-to-git.sh
 push-to-git.cmd
 push-to-astra.cmd
+review
+review.tar.gz
