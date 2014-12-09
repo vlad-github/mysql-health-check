@@ -67,7 +67,7 @@ echo -n "Live counters (20 seconds)..."
 mysqladmin -h $MHOST -u $MUSER $CMDL_PASS -r -c 3 -i 10 extended-status > $REVIEW_DIR/db-stats.log
 echo "Done";
 
-echo "Fetching Tables and Egines statistics:"
+echo "Fetching MySQL tables and egines statistics:"
 
 echo "1. Getting per-engine distribution..."
 mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT engine, count(*) TABLES,  concat(round(sum(table_rows)/1000000,2),'M') rows, concat(round(sum(data_length)/(1024*1024*1024),2),'G') DATA, concat(round(sum(index_length)/(1024*1024*1024),2),'G') idx, concat(round(sum(data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(sum(index_length)/sum(data_length),2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema') GROUP BY engine ORDER BY sum(data_length+index_length) DESC LIMIT 10" > $REVIEW_DIR/db-engines.log
@@ -83,10 +83,6 @@ mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW ENGINE INNODB STATUS\G" > $REVIEW_
 
 echo "5. Getting current process list..."
 mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $REVIEW_DIR/db-processlist.log
-echo "Done. Packing data.";
+echo "Done";
 
-### Archive collected data
-tar -zcvf $REVIEW_DIR.tar.gz $REVIEW_DIR/*
-
-### Uncomment here to send archive to <email@address.com>:
-#base64 $REVIEW_DIR.tar.gz | mail -s "review $MNAME" <email@address.com>
+echo "Collected data available in $REVIEW_DIR/*"
