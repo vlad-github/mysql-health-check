@@ -34,10 +34,8 @@ MPORT=$5
 # Percona Tools path
 PT_BIN_PATH="./bin"
 
-CMDL_PASS="--password=$MPASS --port=$MPORT"
-
 ### Preparing for start
-export PATH=$PATH:$PT_BIN_PATH
+CMDL_PASS="--password=$MPASS --port=$MPORT"
 
 mkdir -p $MNAME
 if [ ! -d $MNAME ]; then
@@ -87,6 +85,7 @@ echo -n "5. Getting current process list..."
 mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $MNAME/db-processlist.log
 echo "Done. Packing data.";
 
+### Archive collected data
 tar -zcvf $MNAME.tar.gz $MNAME/*
 
 ### Uncomment here to send archive to <email@address.com>:

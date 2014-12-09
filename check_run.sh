@@ -41,7 +41,7 @@ if [ "$1" == '--email' ] ; then
 	if [ ! -z "$2" ] ; then
 		### send output to EMAIL provided
 		EMAIL=$2
-		./mysql_health_check.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT | mail -s "MySQL health check summary report for $HOSTNAME" $EMAIL
+		./mysql_health_check.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT | mail -s "$HOSTNAME MySQL health check report" $EMAIL
 	else
 		usage
 		exit 1
@@ -51,7 +51,7 @@ elif [ "$1" == '--first-look' || "$1" == '--initial-review' ] ; then
     ./first_look.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT
 
 else
-    echo "MySQL health check summary report for $HOSTNAME"
+    echo "$HOSTNAME MySQL health check report"
     ./mysql_health_check.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT
 
 fi
