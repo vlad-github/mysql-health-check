@@ -22,6 +22,15 @@
 
     Report will be emailed to you. Useful when running script via cron.
 
+#### FIRST LOOK MODE
+
+    You can collect all the important information about the MySQL server 
+    and operating system environment by running 
+  
+       ./check_run.sh --first-look
+
+    Report includes several files related to Operating system, MySQL server and details of your DB schema.
+
 #### DOCUMENTATION
 
     http://astellar.com/mysql-health-check/
