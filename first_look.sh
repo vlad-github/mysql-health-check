@@ -45,8 +45,8 @@ fi
 
 ### FIXME add error handling for directory creation
 
-if [ "MHOST" == 'localhost' || "MHOST" == '127.0.0.1' || "MHOST" == '0' ] ; then
-    echo "Collecting OS data for host=$MHOST system name=$MNAME:"
+if [ "$MHOST" == 'localhost' ] || [ "$MHOST" == '127.0.0.1' ] || [ "$MHOST" == '0' ] ; then
+    echo "Collecting local data (system summary) for host=$MHOST system name=$MNAME:"
 
     echo -n "Gathering system summary..."
     $PT_BIN_PATH/pt-summary > $MNAME/sys-pt-summary.log
@@ -59,7 +59,7 @@ if [ "MHOST" == 'localhost' || "MHOST" == '127.0.0.1' || "MHOST" == '0' ] ; then
     echo "Done."
 fi
 
-echo "Collecting MySQL data for host=$MHOST:"
+echo "Collecting MySQL server data for host=$MHOST:"
 echo -n "Mysql summary..."
 $PT_BIN_PATH/pt-mysql-summary -- -h $MHOST -u $MUSER $CMDL_PASS > $MNAME/db-mysql-summary.log
 
@@ -69,19 +69,19 @@ echo "Done";
 
 echo "Fetching Tables and Egines statistics:"
 
-echo -n "1. Getting per-engine distribution..."
+echo "1. Getting per-engine distribution..."
 mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT engine, count(*) TABLES,  concat(round(sum(table_rows)/1000000,2),'M') rows, concat(round(sum(data_length)/(1024*1024*1024),2),'G') DATA, concat(round(sum(index_length)/(1024*1024*1024),2),'G') idx, concat(round(sum(data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(sum(index_length)/sum(data_length),2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema') GROUP BY engine ORDER BY sum(data_length+index_length) DESC LIMIT 10" > $MNAME/db-engines.log
 
-echo -n "2. Getting TOP 10 largest tables by size..."
+echo "2. Getting TOP 10 largest tables by size..."
 mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES ORDER BY data_length+index_length DESC LIMIT 10" > $MNAME/db-top-tables.log
 
-echo -n "3. Getting tables size"
+echo "3. Getting tables size"
 mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema') ORDER BY table_schema ASC, data_length+index_length DESC" > $MNAME/db-all-tables.log
 
-echo -n "4. Getting current InnoDB engine status..."
+echo "4. Getting current InnoDB engine status..."
 mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW ENGINE INNODB STATUS\G" > $MNAME/db-innodb.log
 
-echo -n "5. Getting current process list..."
+echo "5. Getting current process list..."
 mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $MNAME/db-processlist.log
 echo "Done. Packing data.";
 

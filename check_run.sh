@@ -46,7 +46,7 @@ if [ "$1" == '--email' ] ; then
 		usage
 		exit 1
 	fi 
-elif [ "$1" == '--first-look' || "$1" == '--initial-review' ] ; then
+elif [ "$1" == '--first-look' ] || [ "$1" == '--initial-review' ] ; then
     echo "Starting complete report for $MYSQL_HOST ($HOSTNAME)"
     ./first_look.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT
 
