@@ -34,7 +34,7 @@ MYSQL_PORT=3306
 
 usage()
 {
-	echo -e "\nUsage check_run.sh [--email <send-to@email-address>]\n"
+	echo -e "\nUsage check_run.sh [--email <send-to@email-address>] | [--first-look ] | [--remote <host> ]"
 }
 
 if [ "$1" == '--email' ] ; then
@@ -49,7 +49,19 @@ if [ "$1" == '--email' ] ; then
 elif [ "$1" == '--first-look' ] || [ "$1" == '--initial-review' ] ; then
     echo "Starting complete report for $MYSQL_HOST ($HOSTNAME)"
     ./first_look.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT
-
+elif [ "$1" == '--remote' ] && [ ! -z "$2" ] ; then
+    REMOTE=$2
+    CDIR=${PWD##*/}
+    echo "Running via SSH on $REMOTE:~/$CDIR..."
+    scp -r ../$CDIR $REMOTE:~/
+    SCP_RC=$?
+    echo $SCP_RC
+    if [ ! $SCP_RC == 0 ] ; then
+        echo "SCP failed. You need to have SSH access configured to $REMOTE"
+        exit 2
+    fi
+    ssh $REMOTE "cd $CDIR && ./check_run.sh --first-look"
+    scp $REMOTE:~/$CDIR/review*.tar.gz .
 else
     echo "$HOSTNAME MySQL health check report"
     ./mysql_health_check.sh $HOSTNAME $MYSQL_HOST $MYSQL_USER "$MYSQL_PASS" $MYSQL_PORT

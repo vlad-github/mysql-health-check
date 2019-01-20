@@ -37,7 +37,7 @@ PT_BIN_PATH="./bin"
 ### Preparing for start
 CMDL_PASS="--password=$MPASS --port=$MPORT"
 
-REVIEW_DIR=`review`
+REVIEW_DIR="review_`hostname`"
 
 mkdir -p $REVIEW_DIR
 if [ ! -d $REVIEW_DIR ]; then
