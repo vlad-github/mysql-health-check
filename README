@@ -32,6 +32,14 @@
     Report includes most information about your Operating system, 
     MySQL server and your DB schema. Please check for more details:
     http://astellar.com/mysql-health-check/initial-review-mode/
+    
+    You could run this type of review remotelly (key-based ssh acess 
+    is requred) using
+
+       ./check_run.sh --remote <hostname>
+    
+    resuling .tar.gz will be copied back to current directory.
+    This mode is convenient for reivew of multiple MySQL servers.
 
 #### DOCUMENTATION
 
