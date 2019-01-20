@@ -53,11 +53,16 @@ elif [ "$1" == '--remote' ] && [ ! -z "$2" ] ; then
     REMOTE=$2
     CDIR=${PWD##*/}
     echo "Running via SSH on $REMOTE:~/$CDIR..."
-    scp -r ../$CDIR $REMOTE:~/
+    ssh $REMOTE "mkdir -p $CDIR"
+    SSH_RC=$?
+    if [ ! $SSH_RC == 0 ] ; then
+        echo "SSH failed. You need to have SSH access configured to $REMOTE"
+        exit 2
+    fi
+    scp -r bin check_run.sh crontab.txt first_look.sh .gitignore mysql_counters mysql_health_check.sh mysql_query_review README $REMOTE:~/$CDIR
     SCP_RC=$?
-    echo $SCP_RC
     if [ ! $SCP_RC == 0 ] ; then
-        echo "SCP failed. You need to have SSH access configured to $REMOTE"
+        echo "SCP failed. Can't copy files to $REMOTE~:/$CDIR"
         exit 2
     fi
     ssh $REMOTE "cd $CDIR && ./check_run.sh --first-look"
