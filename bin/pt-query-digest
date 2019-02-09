@@ -64,7 +64,7 @@ BEGIN {
 {
 package Percona::Toolkit;
 
-our $VERSION = '2.2.12';
+our $VERSION = '3.0.13';
 
 use strict;
 use warnings FATAL => 'all';
@@ -1023,13 +1023,6 @@ sub get_dbh {
    if ( $cxn_string =~ m/mysql/i ) {
       my $sql;
 
-      $sql = 'SELECT @@SQL_MODE';
-      PTDEBUG && _d($dbh, $sql);
-      my ($sql_mode) = eval { $dbh->selectrow_array($sql) };
-      if ( $EVAL_ERROR ) {
-         die "Error getting the current SQL_MODE: $EVAL_ERROR";
-      }
-
       if ( my ($charset) = $cxn_string =~ m/charset=([\w]+)/ ) {
          $sql = qq{/*!40101 SET NAMES "$charset"*/};
          PTDEBUG && _d($dbh, $sql);
@@ -1049,6 +1042,13 @@ sub get_dbh {
 
       if ( my $vars = $self->prop('set-vars') ) {
          $self->set_vars($dbh, $vars);
+      }
+
+      $sql = 'SELECT @@SQL_MODE';
+      PTDEBUG && _d($dbh, $sql);
+      my ($sql_mode) = eval { $dbh->selectrow_array($sql) };
+      if ( $EVAL_ERROR ) {
+         die "Error getting the current SQL_MODE: $EVAL_ERROR";
       }
 
       $sql = 'SET @@SQL_QUOTE_SHOW_CREATE = 1'
@@ -1379,6 +1379,7 @@ sub new {
       'default'    => 1,
       'cumulative' => 1,
       'negatable'  => 1,
+      'repeatable' => 1,  # means it can be specified more than once
    );
 
    my $self = {
@@ -1569,6 +1570,7 @@ sub _pod_to_specs {
             desc  => $para
                . (defined $attribs{default} ? " (default $attribs{default})" : ''),
             group => ($attribs{'group'} ? $attribs{'group'} : 'default'),
+            attributes => \%attribs
          };
       }
       while ( $para = <$fh> ) {
@@ -1622,6 +1624,7 @@ sub _parse_specs {
 
          $opt->{is_negatable}  = $opt->{spec} =~ m/!/        ? 1 : 0;
          $opt->{is_cumulative} = $opt->{spec} =~ m/\+/       ? 1 : 0;
+         $opt->{is_repeatable} = $opt->{attributes}->{repeatable} ? 1 : 0;
          $opt->{is_required}   = $opt->{desc} =~ m/required/ ? 1 : 0;
 
          $opt->{group} ||= 'default';
@@ -1765,11 +1768,21 @@ sub _set_option {
          return;
       }
       else {
-         $opt->{value} = $val;
+         if ($opt->{is_repeatable}) {
+            push @{$opt->{value}} , $val;
+         }
+         else {
+            $opt->{value} = $val;
+         }
       }
    }
    else {
-      $opt->{value} = $val;
+      if ($opt->{is_repeatable}) {
+         push @{$opt->{value}} , $val;
+      }
+      else {
+         $opt->{value} = $val;
+      }
    }
    $opt->{got} = 1;
    PTDEBUG && _d('Got option', $long, '=', $val);
@@ -1789,6 +1802,12 @@ sub get_opts {
 
    $self->{errors} = [];
 
+   if ( @ARGV && $ARGV[0] =~/^--config=/ ) {
+      $ARGV[0] = substr($ARGV[0],9);
+      $ARGV[0] =~ s/^'(.*)'$/$1/;
+      $ARGV[0] =~ s/^"(.*)"$/$1/;
+      $self->_set_option('config', shift @ARGV);
+   }
    if ( @ARGV && $ARGV[0] eq "--config" ) {
       shift @ARGV;
       $self->_set_option('config', shift @ARGV);
@@ -1821,11 +1840,12 @@ sub get_opts {
    if ( exists $self->{opts}->{version} && $self->{opts}->{version}->{got} ) {
       if ( $self->{version} ) {
          print $self->{version}, "\n";
+         exit 0;
       }
       else {
          print "Error parsing version.  See the VERSION section of the tool's documentation.\n";
+         exit 1;
       }
-      exit 1;
    }
 
    if ( @ARGV && $self->{strict} ) {
@@ -1979,7 +1999,15 @@ sub _validate_type {
          }
       }
       my $defaults = $self->{DSNParser}->parse_options($self);
-      $opt->{value} = $self->{DSNParser}->parse($val, $prev, $defaults);
+      if (!$opt->{attributes}->{repeatable}) {
+          $opt->{value} = $self->{DSNParser}->parse($val, $prev, $defaults);
+      } else {
+          my $values = [];
+          for my $dsn_string (@$val) {
+              push @$values, $self->{DSNParser}->parse($dsn_string, $prev, $defaults);
+          }
+          $opt->{value} = $values;
+      }
    }
    elsif ( $val && $opt->{type} eq 'z' ) {  # type size
       PTDEBUG && _d('Parsing option', $opt->{long}, 'as a size value');
@@ -2223,6 +2251,14 @@ sub _read_config_file {
          $parse  = 0;
          next LINE;
       }
+
+      if (  $parse
+            && !$self->has('version-check')
+            && $line =~ /version-check/
+      ) {
+         next LINE;
+      }
+
       if ( $parse
          && (my($opt, $arg) = $line =~ m/^\s*([^=\s]+?)(?:\s*=\s*(.*?)\s*)?$/)
       ) {
@@ -2555,8 +2591,8 @@ sub shorten {
    }
    return sprintf(
       $num =~ m/\./ || $n
-         ? "%.${p}f%s"
-         : '%d',
+         ? '%1$.'.$p.'f%2$s'
+         : '%1$d',
       $num, $units[$n]);
 }
 
@@ -2643,7 +2679,7 @@ sub any_unix_timestamp {
 
 sub make_checksum {
    my ( $val ) = @_;
-   my $checksum = uc substr(md5_hex($val), -16);
+   my $checksum = uc md5_hex($val);
    PTDEBUG && _d($checksum, 'checksum for', $val);
    return $checksum;
 }
@@ -3215,6 +3251,17 @@ sub new {
    foreach my $arg ( qw(MasterSlave) ) {
       die "I need a $arg argument" unless $args{$arg};
    }
+   my $kill_busy_commands = {};
+   if ($args{kill_busy_commands}) {
+       for my $command (split /,/,$args{kill_busy_commands}) {
+           $command =~ s/^\s+|\s+$//g;
+           $kill_busy_commands->{$command} = 1;
+       }
+   } else {
+       $kill_busy_commands->{Query} = 1;
+   }
+   $args{kill_busy_commands} = $kill_busy_commands;
+
    my $self = {
       %args,
       polls       => 0,
@@ -3429,6 +3476,7 @@ sub find {
    my $ms  = $self->{MasterSlave};
 
    my @matches;
+   $self->{_reasons_for_matching} = undef;
    QUERY:
    foreach my $query ( @$proclist ) {
       PTDEBUG && _d('Checking query', Dumper($query));
@@ -3440,7 +3488,7 @@ sub find {
          next QUERY;
       }
 
-      if ( $find_spec{busy_time} && ($query->{Command} || '') eq 'Query' ) {
+      if ( $find_spec{busy_time} && exists($self->{kill_busy_commands}->{$query->{Command} || ''}) ) {
          next QUERY unless defined($query->{Time});
          if ( $query->{Time} < $find_spec{busy_time} ) {
             PTDEBUG && _d("Query isn't running long enough");
@@ -4685,11 +4733,18 @@ sub parse_client_handshake_packet {
    }
 
    my $code_len = hex($buff_len);
-   my ( $db ) = $data =~ m!
-      ^.{64}${user}00..   # Everything matched before
-      (?:..){$code_len}   # The scramble buffer
-      (.*)00\Z            # The database name
-   !x;
+   my $db;
+   
+   my $capability_flags = to_num($flags); # $flags is stored as little endian.
+
+   if ($capability_flags & $flag_for{CLIENT_CONNECT_WITH_DB}) {
+      ( $db ) = $data =~ m!
+         ^.{64}${user}00..   # Everything matched before
+         (?:..){$code_len}   # The scramble buffer
+         (.*?)00.*\Z         # The database name
+      !x;
+   }
+
    my $pkt = {
       user  => to_string($user),
       db    => $db ? to_string($db) : '',
@@ -4971,7 +5026,7 @@ sub new {
    return bless $self, $class;
 }
 
-my $slow_log_ts_line = qr/^# Time: ([0-9: ]{15})/;
+my $slow_log_ts_line = qr/^# Time: ((?:[0-9: ]{15})|(?:[-0-9: T]{19}))/;
 my $slow_log_uh_line = qr/# User\@Host: ([^\[]+|\[[^[]+\]).*?@ (\S*) \[(.*)\]\s*(?:Id:\s*(\d+))?/;
 my $slow_log_hd_line = qr{
       ^(?:
@@ -5191,7 +5246,7 @@ sub new {
 }
 
 sub write {
-   my ( $self, $fh, $event ) = @_;
+   my ( $self, $fh, $event, $field ) = @_;
    if ( $event->{ts} ) {
       print $fh "# Time: $event->{ts}\n";
    }
@@ -5237,7 +5292,11 @@ sub write {
    if ( $event->{arg} =~ m/^administrator command/ ) {
       print $fh '# ';
    }
-   print $fh $event->{arg}, ";\n";
+   if ($field && $event->{$field}) {
+       print $fh $event->{$field}, ";\n";
+   } else {
+       print $fh $event->{arg}, ";\n";
+   }
 
    return;
 }
@@ -5277,6 +5336,8 @@ use Data::Dumper;
 $Data::Dumper::Indent    = 1;
 $Data::Dumper::Sortkeys  = 1;
 $Data::Dumper::Quotekeys = 0;
+
+use Digest::MD5 qw(md5);
 
 use constant BUCK_SIZE   => 1.05;
 use constant BASE_LOG    => log(BUCK_SIZE);
@@ -5805,6 +5866,7 @@ sub top_events {
    my @sorted = reverse sort { # Sorted list of $groupby values
       $classes->{$a}->{$args{attrib}}->{$args{orderby}}
          <=> $classes->{$b}->{$args{attrib}}->{$args{orderby}}
+         || tiebreaker($classes->{$a}, $classes->{$b});
       } grep {
          defined $classes->{$_}->{$args{attrib}}->{$args{orderby}}
       } keys %$classes;  # this should first be sorted for test consistency, but many tests already in place would fail 
@@ -5839,6 +5901,15 @@ sub top_events {
       $count++;
    }
    return \@chosen, \@other;
+}
+
+sub tiebreaker {
+    my ($a, $b) = @_;
+   if (defined $a->{pos_in_log}) {
+      return $a->{pos_in_log}->{max} cmp $b->{pos_in_log}->{max};
+   }
+   return 0;
+     
 }
 
 sub add_new_attributes {
@@ -6661,10 +6732,12 @@ sub BUILDARGS {
          shorten          => 1024,
          report_all       => $o->get('report-all'),
          report_histogram => $o->get('report-histogram'),
+         output           => $o->got('output') ? $o->get('output') : '',
       },
-      num_format     => "# %-${label_width}s %3s %7s %7s %7s %7s %7s %7s %7s",
-      bool_format    => "# %-${label_width}s %3d%% yes, %3d%% no",
-      string_format  => "# %-${label_width}s %s",
+      num_format     => '# %1$-'.$label_width.'s %2$3s %3$7s %4$7s %5$7s %6$7s %7$7s %8$7s %9$7s',
+      bool_format    => '# %1$-'.$label_width.'s %2$3d%% yes, %3$3d%% no',
+      string_format  => '# %1$-'.$label_width.'s %2$s',
+      no_partitions  => 0,
       hidden_attrib  => {   # Don't sort/print these attribs in the reports.
          arg         => 1, # They're usually handled specially, or not
          fingerprint => 1, # printed at all.
@@ -6672,6 +6745,12 @@ sub BUILDARGS {
          ts          => 1,
       },
    };
+   if (!defined($self->{max_hostname_length})) {
+       $self->{max_hostname_length} = MAX_STRING_LENGTH;
+   }
+   if (!defined($self->{max_line_length})) {
+       $self->{max_line_length} = LINE_LENGTH;
+   }
    return $self;
 }
 
@@ -6860,7 +6939,7 @@ sub query_report_values {
       my $rank       = $top_event->[2];
       my $stats      = $ea->results->{classes}->{$item};
       my $sample     = $ea->results->{samples}->{$item};
-      my $samp_query = $sample->{arg} || '';
+      my $samp_query = ($self->{options}->{output} eq 'secure-slowlog') ? $sample->{fingerprint} || '' : $sample->{arg} || '';
 
       my %item_vals = (
          item       => $item,
@@ -6947,27 +7026,28 @@ sub query_report {
          }
       }
 
+      my $partitions_msg = $self->{no_partitions} ? '' : '/*!50100 PARTITIONS*/';
       if ( $groupby eq 'fingerprint' ) {
          my $samp_query = $qr->shorten($vals->{samp_query}, $self->{options}->{shorten})
             if $self->{options}->{shorten};
 
          PTDEBUG && _d("Fingerprint\n#    $vals->{item}\n");
 
-         $report .= $self->tables_report(@{$vals->{tables}});
+         $report .= $self->tables_report($vals->{tables}, \%args);
 
          if ( $vals->{crc} ) {
             $report.= "# CRC " . ($vals->{crc} % 1_000) . "\n";
          }
 
          my $log_type = $args{log_type} || '';
-         my $mark     = '\G';
+         my $mark     = $args{no_v_format} ? '' : '\G';
 
          if ( $item =~ m/^(?:[\(\s]*select|insert|replace)/ ) {
             if ( $item =~ m/^(?:insert|replace)/ ) { # No EXPLAIN
                $report .= "$samp_query${mark}\n";
             }
             else {
-               $report .= "# EXPLAIN /*!50100 PARTITIONS*/\n$samp_query${mark}\n"; 
+               $report .= "# EXPLAIN $partitions_msg\n$samp_query${mark}\n"; 
                $report .= $self->explain_report($samp_query, $vals->{default_db});
             }
          }
@@ -6976,14 +7056,14 @@ sub query_report {
             my $converted = $qr->convert_to_select($samp_query);
             if ( $converted
                  && $converted =~ m/^[\(\s]*select/i ) {
-               $report .= "# Converted for EXPLAIN\n# EXPLAIN /*!50100 PARTITIONS*/\n$converted${mark}\n";
+               $report .= "# Converted for EXPLAIN\n# EXPLAIN $partitions_msg\n$converted${mark}\n";
             }
          }
       }
       else {
          if ( $groupby eq 'tables' ) {
             my ( $db, $tbl ) = $self->Quoter->split_unquote($item);
-            $report .= $self->tables_report([$db, $tbl]);
+            $report .= $self->tables_report([ [$db, $tbl] ], \%args);
          }
          $report .= "$item\n";
       }
@@ -7127,7 +7207,11 @@ sub event_report {
       $val->{checksum},
       $val->{pos_in_log},
    );
-   $line .= ('_' x (LINE_LENGTH - length($line) + $self->label_width() - 12));
+   my $underscores = LINE_LENGTH - length($line) + $self->label_width() - 12;
+   if ( $underscores < 0 ) {
+      $underscores = 0;
+   }
+   $line .= ('_' x $underscores);
    push @result, $line;
 
    if ( $val->{reason} ) {
@@ -7535,16 +7619,19 @@ sub format_string_list {
       if ( $str =~ m/(?:\d+\.){3}\d+/ ) {
          $print_str = $str;  # Do not shorten IP addresses.
       }
-      elsif ( length $str > MAX_STRING_LENGTH ) {
-         $print_str = substr($str, 0, MAX_STRING_LENGTH) . '...';
-      }
-      else {
+      elsif ( $self->{max_hostname_length} > 0 and length $str > $self->{max_hostname_length} ) {
+         $print_str = substr($str, 0, $self->{max_hostname_length}) . '...';
+      } else {
          $print_str = $str;
       }
       my $p = percentage_of($cnt_for->{$str}, $class_cnt);
       $print_str .= " ($cnt_for->{$str}/$p%)";
-      if ( !$show_all->{$attrib} ) {
-         last if (length $line) + (length $print_str)  > LINE_LENGTH - 27;
+      my $trim_length = LINE_LENGTH;
+      if ($self->{max_hostname_length} == 0 or $self->{max_hostname_length} > LINE_LENGTH) {
+          $trim_length = $self->{max_hostname_length};
+      }
+      if ( $self->{max_line_length} > 0 and !$show_all->{$attrib} ) {
+         last if (length $line) + (length $print_str)  > $self->{max_line_length} - 27;
       }
       $line .= "$print_str, ";
       $i++;
@@ -7642,18 +7729,19 @@ sub pref_sort {
 }
 
 sub tables_report {
-   my ( $self, @tables ) = @_;
-   return '' unless @tables;
+   my ( $self, $tables_ref, $args_ref ) = @_;
+   return '' unless @$tables_ref;
    my $q      = $self->Quoter();
    my $tables = "";
-   foreach my $db_tbl ( @tables ) {
+   my $mark   = $args_ref->{no_v_format} ? '' : '\G';
+   foreach my $db_tbl ( @$tables_ref ) {
       my ( $db, $tbl ) = @$db_tbl;
       $tables .= '#    SHOW TABLE STATUS'
                . ($db ? " FROM `$db`" : '')
-               . " LIKE '$tbl'\\G\n";
+               . " LIKE '$tbl'${mark}\n";
       $tables .= "#    SHOW CREATE TABLE "
                . $q->quote(grep { $_ } @$db_tbl)
-               . "\\G\n";
+               . "${mark}\n";
    }
    return $tables ? "# Tables\n$tables" : "# No tables\n";
 }
@@ -7674,14 +7762,28 @@ sub explain_report {
             PTDEBUG && _d($dbh, "USE", $db);
             $dbh->do("USE " . $q->quote($db));
          }
-         my $sth = $dbh->prepare("EXPLAIN /*!50100 PARTITIONS */ $query");
+         my $sth;
+         eval {
+             $sth = $dbh->prepare("EXPLAIN /*!50100 PARTITIONS*/ $query");
+             $sth->execute();
+         };
+         if ($EVAL_ERROR) { # MySQL 8.0+ doesn't support PARTITIONS
+             $self->{no_partitions} = 1;
+             $sth = $dbh->prepare("EXPLAIN $query");
+             $sth->execute();
+         }
          $sth->execute();
          my $i = 1;
          while ( my @row = $sth->fetchrow_array() ) {
             $explain .= "# *************************** $i. "
                       . "row ***************************\n";
             foreach my $j ( 0 .. $#row ) {
-               $explain .= sprintf "# %13s: %s\n", $sth->{NAME}->[$j],
+               # In some OSes/Perl versions, the filtered row can be reported with or without decimals.
+               # Example, in Ubuntu 16.04 it is being printed as 100.00 while in Ubuntu 18.04 it is
+               # being printed as 100.
+               # To make it testeable, we need to have a consistent format across versions.
+               my $value_format = $sth->{NAME}->[$j] eq 'filtered' ? "%.02f" : "%s";
+               $explain .= sprintf "# %13s: $value_format\n", $sth->{NAME}->[$j],
                   defined $row[$j] ? $row[$j] : 'NULL';
             }
             $i++;  # next row number
@@ -8025,16 +8127,18 @@ override query_report => sub {
             default_db => $default_db,
             Quoter     => $q,
          );
+         my $mark = $args{no_v_format} ? '' : '\G';
+
          foreach my $db_tbl ( @table_names ) {
             my ( $db, $tbl ) = @$db_tbl;
             my $status
                = 'SHOW TABLE STATUS'
                . ($db ? " FROM `$db`" : '')
-               . " LIKE '$tbl'\\G";
+               . " LIKE '$tbl'${mark}";
             my $create
                = "SHOW CREATE TABLE "
                . $q->quote(grep { $_ } @$db_tbl)
-               . "\\G";
+               . ${mark};
             push @tables, { status => $status, create => $create };
          }
 
@@ -8772,7 +8876,7 @@ sub parse {
    my ($name)     = $ddl =~ m/CREATE (?:TEMPORARY )?TABLE\s+(`.+?`)/;
    (undef, $name) = $self->{Quoter}->split_unquote($name) if $name;
 
-   $ddl =~ s/(`[^`]+`)/\L$1/g;
+   $ddl =~ s/(`[^`\n]+`)/\L$1/gm;
 
    my $engine = $self->get_engine($ddl);
 
@@ -8783,10 +8887,13 @@ sub parse {
    my %def_for;
    @def_for{@cols} = @defs;
 
-   my (@nums, @null);
-   my (%type_for, %is_nullable, %is_numeric, %is_autoinc);
+   my (@nums, @null, @non_generated);
+   my (%type_for, %is_nullable, %is_numeric, %is_autoinc, %is_generated);
    foreach my $col ( @cols ) {
       my $def = $def_for{$col};
+
+      $def =~ s/``//g;
+
       my ( $type ) = $def =~ m/`[^`]+`\s([a-z]+)/;
       die "Can't determine column type for $def" unless $type;
       $type_for{$col} = $type;
@@ -8798,6 +8905,11 @@ sub parse {
          push @null, $col;
          $is_nullable{$col} = 1;
       }
+      if ( remove_quoted_text($def) =~ m/\WGENERATED\W/i ) {
+          $is_generated{$col} = 1;
+      } else {
+          push @non_generated, $col;
+      }
       $is_autoinc{$col} = $def =~ m/AUTO_INCREMENT/i ? 1 : 0;
    }
 
@@ -8806,22 +8918,32 @@ sub parse {
    my ($charset) = $ddl =~ m/DEFAULT CHARSET=(\w+)/;
 
    return {
-      name           => $name,
-      cols           => \@cols,
-      col_posn       => { map { $cols[$_] => $_ } 0..$#cols },
-      is_col         => { map { $_ => 1 } @cols },
-      null_cols      => \@null,
-      is_nullable    => \%is_nullable,
-      is_autoinc     => \%is_autoinc,
-      clustered_key  => $clustered_key,
-      keys           => $keys,
-      defs           => \%def_for,
-      numeric_cols   => \@nums,
-      is_numeric     => \%is_numeric,
-      engine         => $engine,
-      type_for       => \%type_for,
-      charset        => $charset,
+      name               => $name,
+      cols               => \@cols,
+      col_posn           => { map { $cols[$_] => $_ } 0..$#cols },
+      is_col             => { map { $_ => 1 } @non_generated },
+      null_cols          => \@null,
+      is_nullable        => \%is_nullable,
+      non_generated_cols => \@non_generated,
+      is_autoinc         => \%is_autoinc,
+      is_generated       => \%is_generated,
+      clustered_key      => $clustered_key,
+      keys               => $keys,
+      defs               => \%def_for,
+      numeric_cols       => \@nums,
+      is_numeric         => \%is_numeric,
+      engine             => $engine,
+      type_for           => \%type_for,
+      charset            => $charset,
    };
+}
+
+sub remove_quoted_text {
+   my ($string) = @_;
+   $string =~ s/[^\\]`[^`]*[^\\]`//g; 
+   $string =~ s/[^\\]"[^"]*[^\\]"//g; 
+   $string =~ s/[^\\]'[^']*[^\\]'//g; 
+   return $string;
 }
 
 sub sort_indexes {
@@ -8900,6 +9022,8 @@ sub check_table {
    my $db_tbl = $q->quote($db, $tbl);
    PTDEBUG && _d('Checking', $db_tbl);
 
+   $self->{check_table_error} = undef;
+
    my $sql = "SHOW TABLES FROM " . $q->quote($db)
            . ' LIKE ' . $q->literal_like($tbl);
    PTDEBUG && _d($sql);
@@ -8907,8 +9031,9 @@ sub check_table {
    eval {
       $row = $dbh->selectrow_arrayref($sql);
    };
-   if ( $EVAL_ERROR ) {
-      PTDEBUG && _d($EVAL_ERROR);
+   if ( my $e = $EVAL_ERROR ) {
+      PTDEBUG && _d($e);
+      $self->{check_table_error} = $e;
       return 0;
    }
    if ( !$row->[0] || $row->[0] ne $tbl ) {
@@ -9125,7 +9250,7 @@ sub new {
    my $sql = <<"      SQL";
       INSERT INTO $args{db_tbl}
       (checksum, fingerprint, sample, first_seen, last_seen)
-      VALUES(CONV(?, 16, 10), ?, ?, COALESCE(?, $now), COALESCE(?, $now))
+      VALUES(?, ?, ?, COALESCE(?, $now), COALESCE(?, $now))
       ON DUPLICATE KEY UPDATE
          first_seen = IF(
             first_seen IS NULL,
@@ -9142,8 +9267,8 @@ sub new {
    my @review_cols = grep { !$skip_cols{$_} } @{$args{tbl_struct}->{cols}};
    $sql = "SELECT "
         . join(', ', map { $args{quoter}->quote($_) } @review_cols)
-        . ", CONV(checksum, 10, 16) AS checksum_conv FROM $args{db_tbl}"
-        . " WHERE checksum=CONV(?, 16, 10)";
+        . ", checksum AS checksum_conv FROM $args{db_tbl}"
+        . " WHERE checksum=?";
    PTDEBUG && _d('SQL to select from review table:', $sql);
    my $select_sth = $args{dbh}->prepare($sql);
 
@@ -9273,7 +9398,7 @@ sub set_history_options {
    my $sql = "REPLACE INTO $args{table}("
       . join(', ',
          map { Quoter->quote($_) } ('checksum', 'sample', @cols))
-      . ') VALUES (CONV(?, 16, 10), ?'
+      . ') VALUES (?, ?'
       . (@cols ? ', ' : '')  # issue 1265
       . join(', ', map {
          $_ eq 'ts_min' || $_ eq 'ts_max'
@@ -9803,7 +9928,7 @@ sub new {
 
 my $genlog_line_1= qr{
    \A
-   (?:(\d{6}\s+\d{1,2}:\d\d:\d\d))? # Timestamp
+   (?:(\d{6}\s+\d{1,2}:\d\d:\d\d|\d{4}-\d{1,2}-\d{1,2}T\d\d:\d\d:\d\d\.\d+(?:Z|[-+]?\d\d:\d\d)?))? # Timestamp
    \s+
    (?:\s*(\d+))                     # Thread ID
    \s
@@ -10341,28 +10466,22 @@ use warnings FATAL => 'all';
 use English qw(-no_match_vars);
 use constant PTDEBUG => $ENV{PTDEBUG} || 0;
 
-sub check_recursion_method {
+sub check_recursion_method {                                                       
    my ($methods) = @_;
-
-   foreach my $method ( @$methods ) {
-      die "Invalid recursion method: " . ($method || 'undef') . "\n"
-         unless $method && $method =~ m/^(?:processlist$|hosts$|none$|cluster|dsn=)/i;
-   }
-
-   if ( @$methods > 1 ) {
-      if ( grep( { m/none/ } @$methods) && grep( {! m/none/ } @$methods) ) {
-            die "--recursion-method=none cannot be combined with other methods\n";
-      }
-      elsif ( grep({ !m/processlist|hosts/i } @$methods)
-            && $methods->[0] !~ /^dsn=/i )
-      {
-         die  "Invalid combination of recursion methods: "
-            . join(", ", map { defined($_) ? $_ : 'undef' } @$methods) . ". "
-            . "Only hosts and processlist may be combined.\n"
-      }
-   }
-
-   return;
+   if ( @$methods != 1 ) {                                                         
+      if ( grep({ !m/processlist|hosts/i } @$methods)                              
+            && $methods->[0] !~ /^dsn=/i ) 
+      {     
+         die  "Invalid combination of recursion methods: "                         
+            . join(", ", map { defined($_) ? $_ : 'undef' } @$methods) . ". "      
+            . "Only hosts and processlist may be combined.\n"                      
+      }                                                                            
+   }     
+   else {   
+      my ($method) = @$methods;
+      die "Invalid recursion method: " . ( $method || 'undef' )                    
+         unless $method && $method =~ m/^(?:processlist$|hosts$|none$|cluster$|dsn=)/i;     
+   }                                                                               
 }
 
 sub new {
@@ -10398,21 +10517,32 @@ sub get_slaves {
          die "I need a $arg argument" unless $args{$arg};
       }
       my ($dbh, $dsn) = @args{@required_args};
-      
+      my $o = $self->{OptionParser};
+
       $self->recurse_to_slaves(
-         {  dbh       => $dbh,
-            dsn       => $dsn,
+         {  dbh            => $dbh,
+            dsn            => $dsn,
+            slave_user     => $o->got('slave-user') ? $o->get('slave-user') : '',
+            slave_password => $o->got('slave-password') ? $o->get('slave-password') : '', 
             callback  => sub {
                my ( $dsn, $dbh, $level, $parent ) = @_;
                return unless $level;
                PTDEBUG && _d('Found slave:', $dp->as_string($dsn));
-               push @$slaves, $make_cxn->(dsn => $dsn, dbh => $dbh);
+               my $slave_dsn = $dsn;
+               if ($o->got('slave-user')) {
+                  $slave_dsn->{u} = $o->get('slave-user');
+                  PTDEBUG && _d("Using slave user ".$o->get('slave-user')." on ".$slave_dsn->{h}.":".$slave_dsn->{P});
+               }
+               if ($o->got('slave-password')) {
+                  $slave_dsn->{p} = $o->get('slave-password');
+                  PTDEBUG && _d("Slave password set");
+               }
+               push @$slaves, $make_cxn->(dsn => $slave_dsn, dbh => $dbh);
                return;
             },
          }
       );
-   }
-   elsif ( $methods->[0] =~ m/^dsn=/i ) {
+   } elsif ( $methods->[0] =~ m/^dsn=/i ) {
       (my $dsn_table_dsn = join ",", @$methods) =~ s/^dsn=//i;
       $slaves = $self->get_cxn_from_dsn_table(
          %args,
@@ -10447,9 +10577,11 @@ sub _resolve_recursion_methods {
 sub recurse_to_slaves {
    my ( $self, $args, $level ) = @_;
    $level ||= 0;
-   my $dp      = $self->{DSNParser};
+   my $dp = $self->{DSNParser};
    my $recurse = $args->{recurse} || $self->{OptionParser}->get('recurse');
-   my $dsn     = $args->{dsn};
+   my $dsn = $args->{dsn};
+   my $slave_user = $args->{slave_user} || '';
+   my $slave_password = $args->{slave_password} || '';
 
    my $methods = $self->_resolve_recursion_methods($dsn);
    PTDEBUG && _d('Recursion methods:', @$methods);
@@ -10458,14 +10590,24 @@ sub recurse_to_slaves {
       return;
    }
 
+   my $slave_dsn = $dsn;
+   if ($slave_user) {
+      $slave_dsn->{u} = $slave_user;
+      PTDEBUG && _d("Using slave user $slave_user on ".$slave_dsn->{h}.":".$slave_dsn->{P});
+   }
+   if ($slave_password) {
+      $slave_dsn->{p} = $slave_password;
+      PTDEBUG && _d("Slave password set");
+   }
+
    my $dbh;
    eval {
       $dbh = $args->{dbh} || $dp->get_dbh(
-         $dp->get_cxn_params($dsn), { AutoCommit => 1 });
-      PTDEBUG && _d('Connected to', $dp->as_string($dsn));
+         $dp->get_cxn_params($slave_dsn), { AutoCommit => 1 });
+      PTDEBUG && _d('Connected to', $dp->as_string($slave_dsn));
    };
    if ( $EVAL_ERROR ) {
-      print STDERR "Cannot connect to ", $dp->as_string($dsn), "\n"
+      print STDERR "Cannot connect to ", $dp->as_string($slave_dsn), "\n"
          or die "Cannot print: $OS_ERROR";
       return;
    }
@@ -10498,7 +10640,7 @@ sub recurse_to_slaves {
          PTDEBUG && _d('Recursing from',
             $dp->as_string($dsn), 'to', $dp->as_string($slave));
          $self->recurse_to_slaves(
-            { %$args, dsn => $slave, dbh => undef, parent => $dsn }, $level + 1 );
+            { %$args, dsn => $slave, dbh => undef, parent => $dsn, slave_user => $slave_user, $slave_password => $slave_password }, $level + 1 );
       }
    }
 }
@@ -10604,7 +10746,7 @@ sub get_connected_slaves {
       die "You do not have the PROCESS privilege";
    }
 
-   $sql = 'SHOW PROCESSLIST';
+   $sql = 'SHOW FULL PROCESSLIST';
    PTDEBUG && _d($dbh, $sql);
    grep { $_->{command} =~ m/Binlog Dump/i }
    map  { # Lowercase the column names
@@ -10662,21 +10804,44 @@ sub get_master_dsn {
 
 sub get_slave_status {
    my ( $self, $dbh ) = @_;
+
    if ( !$self->{not_a_slave}->{$dbh} ) {
       my $sth = $self->{sths}->{$dbh}->{SLAVE_STATUS}
             ||= $dbh->prepare('SHOW SLAVE STATUS');
       PTDEBUG && _d($dbh, 'SHOW SLAVE STATUS');
       $sth->execute();
-      my ($ss) = @{$sth->fetchall_arrayref({})};
+      my ($sss_rows) = $sth->fetchall_arrayref({}); # Show Slave Status rows
 
-      if ( $ss && %$ss ) {
-         $ss = { map { lc($_) => $ss->{$_} } keys %$ss }; # lowercase the keys
-         return $ss;
+      my $ss;
+      if ( $sss_rows && @$sss_rows ) {
+          if (scalar @$sss_rows > 1) {
+              if (!$self->{channel}) {
+                  die 'This server returned more than one row for SHOW SLAVE STATUS but "channel" was not specified on the command line';
+              }
+              for my $row (@$sss_rows) {
+                  $row = { map { lc($_) => $row->{$_} } keys %$row }; # lowercase the keys
+                  if ($row->{channel_name} eq $self->{channel}) {
+                      $ss = $row;
+                      last;
+                  }
+              }
+          } else {
+              if ($sss_rows->[0]->{channel_name} && $sss_rows->[0]->{channel_name} ne $self->{channel}) {
+                  die 'This server is using replication channels but "channel" was not specified on the command line';
+              } else {
+                  $ss = $sss_rows->[0];
+              }
+          }
+
+          if ( $ss && %$ss ) {
+             $ss = { map { lc($_) => $ss->{$_} } keys %$ss }; # lowercase the keys
+             return $ss;
+          }
       }
 
       PTDEBUG && _d('This server returns nothing for SHOW SLAVE STATUS');
       $self->{not_a_slave}->{$dbh}++;
-   }
+  }
 }
 
 sub get_master_status {
@@ -10716,8 +10881,20 @@ sub wait_for_master {
    my $result;
    my $waited;
    if ( $master_status ) {
-      my $sql = "SELECT MASTER_POS_WAIT('$master_status->{file}', "
-              . "$master_status->{position}, $timeout)";
+      my $slave_status;
+      eval {
+          $slave_status = $self->get_slave_status($slave_dbh);
+      };
+      if ($EVAL_ERROR) {
+          return {
+              result => undef,
+              waited => 0,
+              error  =>'Wait for master: this is a multi-master slave but "channel" was not specified on the command line',
+          };
+      }
+      my $server_version = VersionParser->new($slave_dbh);
+      my $channel_sql = $server_version > '5.6' && $self->{channel} ? ", '$self->{channel}'" : '';
+      my $sql = "SELECT MASTER_POS_WAIT('$master_status->{file}', $master_status->{position}, $timeout $channel_sql)";
       PTDEBUG && _d($slave_dbh, $sql);
       my $start = time;
       ($result) = $slave_dbh->selectrow_array($sql);
@@ -10783,6 +10960,9 @@ sub catchup_to_master {
             timeout       => $timeout,
             master_status => $master_status
       );
+      if ($result->{error}) {
+          die $result->{error};
+      }
       if ( !defined $result->{result} ) {
          $slave_status = $self->get_slave_status($slave);
          if ( !$self->slave_is_running($slave_status) ) {
@@ -11103,11 +11283,10 @@ sub new {
       last_reported => $args{start},
       fraction      => 0,       # How complete the job is
       callback      => sub {
-         my ($fraction, $elapsed, $remaining, $eta) = @_;
+         my ($fraction, $elapsed, $remaining) = @_;
          printf STDERR "$name: %3d%% %s remain\n",
             $fraction * 100,
-            Transformers::secs_to_time($remaining),
-            Transformers::ts($eta);
+            Transformers::secs_to_time($remaining);
       },
       %args,
    };
@@ -11833,7 +12012,8 @@ sub _split_url {
            ref($self->{fh}) eq 'IO::Socket::SSL'
                or die(qq/SSL connection failed for $host\n/);
            if ( $self->{fh}->can("verify_hostname") ) {
-               $self->{fh}->verify_hostname( $host, $ssl_verify_args );
+               $self->{fh}->verify_hostname( $host, $ssl_verify_args )
+                  or die(qq/SSL certificate not valid for $host\n/);
            }
            else {
             my $fh = $self->{fh};
@@ -12296,15 +12476,16 @@ eval {
    require HTTP::Micro;
 };
 
+my $home    = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
+my @vc_dirs = (
+   '/etc/percona',
+   '/etc/percona-toolkit',
+   '/tmp',
+   "$home",
+);
+
 {
    my $file    = 'percona-version-check';
-   my $home    = $ENV{HOME} || $ENV{HOMEPATH} || $ENV{USERPROFILE} || '.';
-   my @vc_dirs = (
-      '/etc/percona',
-      '/etc/percona-toolkit',
-      '/tmp',
-      "$home",
-   );
 
    sub version_check_file {
       foreach my $dir ( @vc_dirs ) {
@@ -12332,7 +12513,12 @@ sub version_check {
    PTDEBUG && _d('FindBin::Bin:', $FindBin::Bin);
    if ( !$args{force} ) {
       if ( $FindBin::Bin
-           && (-d "$FindBin::Bin/../.bzr" || -d "$FindBin::Bin/../../.bzr") ) {
+           && (-d "$FindBin::Bin/../.bzr"    || 
+               -d "$FindBin::Bin/../../.bzr" ||
+               -d "$FindBin::Bin/../.git"    || 
+               -d "$FindBin::Bin/../../.git" 
+              ) 
+         ) {
          PTDEBUG && _d("$FindBin::Bin/../.bzr disables --version-check");
          return;
       }
@@ -12355,11 +12541,12 @@ sub version_check {
       PTDEBUG && _d(scalar @$instances_to_check, 'instances to check');
       return unless @$instances_to_check;
 
-      my $protocol = 'https';  # optimistic, but...
+      my $protocol = 'https';  
       eval { require IO::Socket::SSL; };
       if ( $EVAL_ERROR ) {
          PTDEBUG && _d($EVAL_ERROR);
-         $protocol = 'http';
+         PTDEBUG && _d("SSL not available, won't run version_check");
+         return;
       }
       PTDEBUG && _d('Using', $protocol);
 
@@ -12515,6 +12702,46 @@ sub get_instance_id {
 }
 
 
+sub get_uuid {
+    my $uuid_file = '/.percona-toolkit.uuid';
+    foreach my $dir (@vc_dirs) {
+        my $filename = $dir.$uuid_file;
+        my $uuid=_read_uuid($filename);
+        return $uuid if $uuid;
+    }
+
+    my $filename = $ENV{"HOME"} . $uuid_file;
+    my $uuid = _generate_uuid();
+
+    open(my $fh, '>', $filename) or die "Could not open file '$filename' $!";
+    print $fh $uuid;
+    close $fh;
+
+    return $uuid;
+}   
+
+sub _generate_uuid {
+    return sprintf+($}="%04x")."$}-$}-$}-$}-".$}x3,map rand 65537,0..7;
+}
+
+sub _read_uuid {
+    my $filename = shift;
+    my $fh;
+
+    eval {
+        open($fh, '<:encoding(UTF-8)', $filename);
+    };
+    return if ($EVAL_ERROR);
+
+    my $uuid;
+    eval { $uuid = <$fh>; };
+    return if ($EVAL_ERROR);
+
+    chomp $uuid;
+    return $uuid;
+}
+
+
 sub pingback {
    my (%args) = @_;
    my @required_args = qw(url instances);
@@ -12551,7 +12778,7 @@ sub pingback {
    my $client_content = encode_client_response(
       items      => $items,
       versions   => $versions,
-      general_id => md5_hex( hostname() ),
+      general_id => get_uuid(),
    );
 
    my $client_response = {
@@ -12796,6 +13023,11 @@ sub get_from_mysql {
       return;
    }
 
+   if ($item->{item} eq 'MySQL' && $item->{type} eq 'mysql_variable') {
+      @{$item->{vars}} = grep { $_ eq 'version' || $_ eq 'version_comment' } @{$item->{vars}};
+   }
+ 
+
    my @versions;
    my %version_for;
    foreach my $instance ( @$instances ) {
@@ -12986,7 +13218,7 @@ sub main {
    # #######################################################################
    my $q  = new Quoter();
    my $qp = new QueryParser();
-   my $qr = new QueryRewriter(QueryParser=>$qp);
+   my $qr = new QueryRewriter(QueryParser=>$qp, match_embedded_numbers => $o->get('preserve-embedded-numbers') ? 1 : 0);
    my %common_modules = (
       OptionParser  => $o,
       DSNParser     => $dp,
@@ -13179,6 +13411,10 @@ sub main {
                # Open the next file.
                my ($fh, $filename, $filesize) = $next_file->();
                if ( $fh ) {
+                  my $fileno = fileno $fh;
+                  if ($fileno == 0) {
+                     print "Reading from STDIN ...\n";
+                  }
                   PTDEBUG && _d('Reading', $filename);
                   PTDEBUG && _d('File size:', $filesize);
                   # catch if user is trying to use an uncoverted (raw) binlog  # issue 1377888
@@ -14006,13 +14242,14 @@ sub main {
 
    if ( $o->get('output') =~ /slowlog/i ) {
       my $w = new SlowLogWriter();
+      my $field = $o->get('output') eq 'secure-slowlog' ? 'fingerprint' : '';
       $pipeline->add(
          name    => '--output slowlog',
          process => sub {
             my ( $args ) = @_;
             my $event = $args->{event};
             PTDEBUG && _d('callback: --output slowlog');
-            $w->write(*STDOUT, $event);
+            $w->write(*STDOUT, $event, $field);
             return $args;
          },
       );
@@ -14299,13 +14536,15 @@ sub print_reports {
                           ? 'JSONReportFormatter'
                           : 'QueryReportFormatter';
          my $qrf = $report_class->new(
-            dbh           => $ep_dbh,
-            QueryReview   => $args{QueryReview},
-            QueryRewriter => $args{QueryRewriter},
-            OptionParser  => $args{OptionParser},
-            QueryParser   => $args{QueryParser},
-            Quoter        => $args{Quoter},
-            show_all      => $show_all,
+            dbh                 => $ep_dbh,
+            QueryReview         => $args{QueryReview},
+            QueryRewriter       => $args{QueryRewriter},
+            OptionParser        => $args{OptionParser},
+            QueryParser         => $args{QueryParser},
+            Quoter              => $args{Quoter},
+            show_all            => $show_all,
+            max_hostname_length => $o->get('max-hostname-length'),
+            max_line_length     => $o->get('max-line-length'),
          );
 
          $qrf->print_reports(
@@ -14319,6 +14558,7 @@ sub print_reports {
             explain_why  => $explain_why,
             files        => $args{files},
             log_type     => $o->get('type')->[0],
+            no_v_format  => !$o->get('vertical-format'),
             variations   => $o->get('variations'),
             group        => { map { $_=>1 } qw(rusage date hostname files header) },
             resume       => $resume,
@@ -15208,13 +15448,14 @@ be report lines for both db and Schema.
 
 =item --attribute-value-limit
 
-type: int; default: 4294967296
+type: int; default: 0 
 
 A sanity limit for attribute values.
 
 This option deals with bugs in slow logging functionality that causes large
 values for attributes.  If the attribute's value is bigger than this, the
 last-seen value for that class of query is used instead.
+Disabled by default.
 
 =item --charset
 
@@ -15496,7 +15737,7 @@ pt-query-digest inspects the columns in the table.  The table must have at
 least the following columns:
 
   CREATE TABLE query_review_history (
-    checksum     BIGINT UNSIGNED NOT NULL,
+    checksum     CHAR(32) NOT NULL,
     sample       TEXT NOT NULL
   );
 
@@ -15526,7 +15767,7 @@ The following table definition is used for L<"--[no]create-history-table">:
 MAGIC_create_history_table
 
  CREATE TABLE IF NOT EXISTS query_history (
-   checksum             BIGINT UNSIGNED NOT NULL,
+   checksum             CHAR(32) NOT NULL,
    sample               TEXT NOT NULL,
    ts_min               DATETIME,
    ts_max               DATETIME,
@@ -15630,6 +15871,9 @@ MAGIC_create_history_table
 Note that we store the count (cnt) for the ts attribute only; it will be
 redundant to store this for other attributes.
 
+Starting from Percona Toolkit 3.0.11, the checksum function has been updated to use 32 chars in the MD5 sum.
+This causes the checksum field in the history table will have a different value than in the previous versions of the tool.
+
 =item --host
 
 short form: -h; type: string
@@ -15696,6 +15940,18 @@ type: string
 
 Print all output to this file when daemonized.
 
+=item --max-hostname-length
+
+type: int; default: 10
+
+Trim host names in reports to this length. 0=Do not trim host names.
+
+=item --max-line-length
+
+type: int; default: 74
+
+Trim lines to this length. 0=Do not trim lines.
+
 =item --order-by
 
 type: Array; default: Query_time:sum
@@ -15761,12 +16017,13 @@ type: string; default: report
 
 How to format and print the query analysis results.  Accepted values are:
 
-   VALUE      FORMAT
-   =======    ==============================
-   report     Standard query analysis report
-   slowlog    MySQL slow log
-   json       JSON, on array per query class
-   json-anon  JSON without example queries
+   VALUE          FORMAT
+   =======        ==============================
+   report         Standard query analysis report
+   slowlog        MySQL slow log
+   json           JSON, on array per query class
+   json-anon      JSON without example queries
+   secure-slowlog JSON without example queries
 
 The entire C<report> output can be disabled by specifying C<--no-report>
 (see L<"--[no]report">), and its sections can be disabled or rearranged
@@ -15780,6 +16037,7 @@ so the data structure may change in future versions.
 short form: -p; type: string
 
 Password to use when connecting.
+If password contains commas they must be escaped with a backslash: "exam\,ple"
 
 =item --pid
 
@@ -15796,6 +16054,14 @@ removed automatically when the tool exits.
 short form: -P; type: int
 
 Port number to use for connection.
+
+=item --preserve-embedded-numbers
+
+Preserve numbers in database/table names when fingerprinting queries.
+The standar fingeprint method replaces numbers in db/tables names, making
+a query like 'SELECT * FROM db1.table2' to be figerprinted as 'SELECT * FROM db?.table?'.
+This option changes that behaviour and the fingerprint will become 
+'SELECT * FROM db1.table2'.
 
 =item --processlist
 
@@ -15922,7 +16188,7 @@ by pt-query-digest.
 MAGIC_create_review_table:
 
   CREATE TABLE IF NOT EXISTS query_review (
-     checksum     BIGINT UNSIGNED NOT NULL PRIMARY KEY,
+     checksum     CHAR(32) NOT NULL PRIMARY KEY,
      fingerprint  TEXT NOT NULL,
      sample       TEXT NOT NULL,
      first_seen   DATETIME,
@@ -16039,6 +16305,22 @@ queries.  A complete example:
 
   pt-query-digest --sample 2 --no-report --output slowlog slow.log
 
+=item --slave-user
+
+type: string
+
+Sets the user to be used to connect to the slaves.
+This parameter allows you to have a different user with less privileges on the
+slaves but that user must exist on all slaves.
+
+=item --slave-password
+
+type: string
+
+Sets the password to be used to connect to the slaves.
+It can be used with --slave-user and the password for the user must be the same
+on all slaves.
+
 =item --set-vars
 
 type: Array
@@ -16083,7 +16365,7 @@ several types:
     s=seconds, h=hours, m=minutes, d=days (default s if no suffix
     given); this is like saying "since N[shmd] ago"
   * Full date with optional hours:minutes:seconds:
-    YYYY-MM-DD [HH:MM::SS]
+    YYYY-MM-DD [HH:MM:SS]
   * Short, MySQL-style date:
     YYMMDD [HH:MM:SS]
   * Any time expression evaluated by MySQL:
@@ -16302,18 +16584,33 @@ default: yes
 Check for the latest version of Percona Toolkit, MySQL, and other programs.
 
 This is a standard "check for updates automatically" feature, with two
-additional features.  First, the tool checks the version of other programs
-on the local system in addition to its own version.  For example, it checks
-the version of every MySQL server it connects to, Perl, and the Perl module
-DBD::mysql.  Second, it checks for and warns about versions with known
-problems.  For example, MySQL 5.5.25 had a critical bug and was re-released
+additional features.  First, the tool checks its own version and also the
+versions of the following software: operating system, Percona Monitoring and
+Management (PMM), MySQL, Perl, MySQL driver for Perl (DBD::mysql), and
+Percona Toolkit. Second, it checks for and warns about versions with known
+problems. For example, MySQL 5.5.25 had a critical bug and was re-released
 as 5.5.25a.
+
+A secure connection to Percona’s Version Check database server is done to
+perform these checks. Each request is logged by the server, including software
+version numbers and unique ID of the checked system. The ID is generated by the
+Percona Toolkit installation script or when the Version Check database call is
+done for the first time.
 
 Any updates or known problems are printed to STDOUT before the tool's normal
 output.  This feature should never interfere with the normal operation of the
 tool.  
 
-For more information, visit L<https://www.percona.com/version-check>.
+For more information, visit L<https://www.percona.com/doc/percona-toolkit/LATEST/version-check.html>.
+
+=item --[no]vertical-format
+
+default: yes
+
+Output a trailing "\G" in the reported SQL queries.
+
+This makes the mysql client display the result using vertical format.
+Non-native MySQL clients like phpMyAdmin do not support this.
 
 =item --watch-server
 
@@ -16373,6 +16670,7 @@ Connect to host.
 dsn: password; copy: yes
 
 Password to use when connecting.
+If password contains commas they must be escaped with a backslash: "exam\,ple"
 
 =item * P
 
@@ -16417,7 +16715,7 @@ installed in any reasonably new version of Perl.
 
 For a list of known bugs, see L<http://www.percona.com/bugs/pt-query-digest>.
 
-Please report bugs at L<https://bugs.launchpad.net/percona-toolkit>.
+Please report bugs at L<https://jira.percona.com/projects/PT>.
 Include the following information in your bug report:
 
 =over
@@ -16599,7 +16897,7 @@ software from Percona.
 
 =head1 COPYRIGHT, LICENSE, AND WARRANTY
 
-This program is copyright 2008-2014 Percona LLC and/or its affiliates.
+This program is copyright 2008-2018 Percona LLC and/or its affiliates.
 
 THIS PROGRAM IS PROVIDED "AS IS" AND WITHOUT ANY EXPRESS OR IMPLIED
 WARRANTIES, INCLUDING, WITHOUT LIMITATION, THE IMPLIED WARRANTIES OF
@@ -16617,6 +16915,6 @@ Place, Suite 330, Boston, MA  02111-1307  USA.
 
 =head1 VERSION
 
-pt-query-digest 2.2.12
+pt-query-digest 3.0.13
 
 =cut
