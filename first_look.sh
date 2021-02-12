@@ -31,12 +31,29 @@ MUSER=$3
 MPASS=$4
 MPORT=$5
 
+### Preparing for start
 # Percona Tools path
 PT_BIN_PATH="./bin"
 
-### Preparing for start
-CMDL_PASS="--password=$MPASS --port=$MPORT"
-
+### Checking credentials
+### checking if there is stored MySQL password
+mysql -e "SELECT 1"
+if [ $? == 0 ] ; then
+    ### great success! resetting connection string
+    CMDL_DSN=""
+else 
+    ### checking provided credentials (might be empty)
+    mysql -h $MHOST -u $MUSER --password=$MPASS --port=$MPORT -e "SELECT 1"
+    if [ ! $? == 0 ] ; then
+       # assuming wrong password. Asking for a new one
+       echo "Assuming wrong credentials. Please enter correct mysql user and password"
+       read -t 30 -p "Enter mysql user name:" MUSER
+       read -s -t 30 -p "Enter mysql password:" MPASS
+       echo " got it, restarting."
+    fi
+    CMDL_DSN=" -h $MHOST -u $MUSER --password=$MPASS --port=$MPORT"
+fi
+       
 REVIEW_DIR="review_`hostname`_`date +%F_%H%M.%S`"
 
 mkdir -p $REVIEW_DIR
@@ -61,28 +78,28 @@ fi
 
 echo "Collecting MySQL server data for host=$MHOST:"
 echo -n "Mysql summary..."
-$PT_BIN_PATH/pt-mysql-summary -- -h $MHOST -u $MUSER $CMDL_PASS > $REVIEW_DIR/db-mysql-summary.log
+$PT_BIN_PATH/pt-mysql-summary -- $CMDL_DSN > $REVIEW_DIR/db-mysql-summary.log
 
 echo -n "Live counters (20 seconds)..."
-mysqladmin -h $MHOST -u $MUSER $CMDL_PASS -r -c 3 -i 10 extended-status > $REVIEW_DIR/db-stats.log
+mysqladmin $CMDL_DSN -r -c 3 -i 10 extended-status > $REVIEW_DIR/db-stats.log
 echo "Done";
 
 echo "Fetching MySQL tables and egines statistics:"
 
 echo "1. Getting per-engine distribution..."
-mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT engine, count(*) TABLES,  concat(round(sum(table_rows)/1000000,2),'M') rows, concat(round(sum(data_length)/(1024*1024*1024),2),'G') DATA, concat(round(sum(index_length)/(1024*1024*1024),2),'G') idx, concat(round(sum(data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(sum(index_length)/sum(data_length),2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') GROUP BY engine ORDER BY sum(data_length+index_length) DESC LIMIT 10" > $REVIEW_DIR/db-engines.log
+mysql -t $CMDL_DSN -e "SELECT engine, count(*) TABLES,  concat(round(sum(table_rows)/1000000,2),'M') rows, concat(round(sum(data_length)/(1024*1024*1024),2),'G') DATA, concat(round(sum(index_length)/(1024*1024*1024),2),'G') idx, concat(round(sum(data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(sum(index_length)/sum(data_length),2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') GROUP BY engine ORDER BY sum(data_length+index_length) DESC LIMIT 10" > $REVIEW_DIR/db-engines.log
 
 echo "2. Getting TOP 10 largest tables by size..."
-mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES ORDER BY data_length+index_length DESC LIMIT 10" > $REVIEW_DIR/db-top-tables.log
+mysql -t $CMDL_DSN -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES ORDER BY data_length+index_length DESC LIMIT 10" > $REVIEW_DIR/db-top-tables.log
 
 echo "3. Getting tables size"
-mysql -t -h $MHOST -u $MUSER $CMDL_PASS -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') ORDER BY table_schema ASC, data_length+index_length DESC" > $REVIEW_DIR/db-all-tables.log
+mysql -t $CMDL_DSN -e "SELECT concat(table_schema,'.',table_name), engine,  concat(round(table_rows/1000000,2),'M') rows, concat(round(data_length/(1024*1024*1024),2),'G') DATA, concat(round(index_length/(1024*1024*1024),2),'G') idx, concat(round((data_length+index_length)/(1024*1024*1024),2),'G') total_size, round(index_length/data_length,2) idxfrac FROM information_schema.TABLES WHERE table_schema NOT IN ('mysql', 'information_schema', 'performance_schema', 'sys') ORDER BY table_schema ASC, data_length+index_length DESC" > $REVIEW_DIR/db-all-tables.log
 
 echo "4. Getting current InnoDB engine status..."
-mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW ENGINE INNODB STATUS\G" > $REVIEW_DIR/db-innodb.log
+mysql $CMDL_DSN -e "SHOW ENGINE INNODB STATUS\G" > $REVIEW_DIR/db-innodb.log
 
 echo "5. Getting current process list..."
-mysql -h $MHOST -u $MUSER $CMDL_PASS -e "SHOW PROCESSLIST\G" > $REVIEW_DIR/db-processlist.log
+mysql $CMDL_DSN -e "SHOW PROCESSLIST\G" > $REVIEW_DIR/db-processlist.log
 
 echo "Done, paking data";
 tar -zcvf $REVIEW_DIR.tar.gz $REVIEW_DIR/*

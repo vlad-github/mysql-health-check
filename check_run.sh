@@ -65,7 +65,7 @@ elif [ "$1" == '--remote' ] && [ ! -z "$2" ] ; then
         echo "SCP failed. Can't copy files to $REMOTE~:/$CDIR"
         exit 2
     fi
-    ssh $REMOTE "cd $CDIR && ./check_run.sh --first-look"
+    ssh -t $REMOTE "cd $CDIR && ./check_run.sh --first-look"
     scp $REMOTE:~/$CDIR/review*.tar.gz .
 else
     echo "$HOSTNAME MySQL health check report"
