@@ -37,7 +37,7 @@ PT_BIN_PATH="./bin"
 
 ### Checking credentials
 ### checking if there is stored MySQL password
-mysql -e "SELECT 'Access check ok'"
+mysql -e "SELECT 'ok' as Access_check"
 if [ $? == 0 ] ; then
     ### great success! resetting connection string
     CMDL_DSN=""
