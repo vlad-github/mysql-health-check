@@ -5,5 +5,7 @@ release.cmd
 push-to-git.sh
 push-to-git.cmd
 push-to-astra.cmd
-review
+archive*
+review*
 review.tar.gz
+walkthrough_lux.sh
